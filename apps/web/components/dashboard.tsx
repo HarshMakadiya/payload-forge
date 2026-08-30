@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import {
   apiRequest,
+  API_ORIGIN,
   type Endpoint,
   type Environment,
   type Project,
@@ -65,8 +67,16 @@ export function Dashboard(): React.ReactElement {
   useEffect(() => {
     void loadProjectData();
     if (selectedProjectId === '') return;
-    const interval = window.setInterval(() => void loadProjectData(), 2_000);
-    return () => window.clearInterval(interval);
+    const socket = io(API_ORIGIN, { transports: ['websocket'] });
+    socket.on('run-progress', () => void loadProjectData());
+    const fallbackInterval = window.setInterval(
+      () => void loadProjectData(),
+      15_000
+    );
+    return () => {
+      socket.close();
+      window.clearInterval(fallbackInterval);
+    };
   }, [loadProjectData, selectedProjectId]);
 
   return (
@@ -108,7 +118,7 @@ export function Dashboard(): React.ReactElement {
               runs={runs}
               onChanged={loadProjectData}
             />
-            <PayloadLab />
+            <PayloadLab projectId={selectedProjectId} endpoints={endpoints} />
           </>
         )}
       </div>

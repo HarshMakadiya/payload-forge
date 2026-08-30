@@ -6,6 +6,6 @@ coverage/
 .env.*
 !.env.example
 *.log
+*.tsbuildinfo
 .DS_Store
 packages/prisma/dev.db*
-

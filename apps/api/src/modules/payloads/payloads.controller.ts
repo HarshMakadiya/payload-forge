@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 import { GeneratePayloadsDto } from './payloads.dto.js';
 import { PayloadGeneratorService } from './payload-generator.service.js';
 
@@ -8,8 +8,9 @@ export class PayloadsController {
 
   @Post('estimate')
   estimate(@Body() input: GeneratePayloadsDto): { data: unknown; error: null } {
+    const sample = this.requireSampleOrSchema(input);
     return {
-      data: this.generator.estimate(input.sample, input.seedCount ?? 25),
+      data: this.generator.estimate(sample, input.seedCount ?? 25),
       error: null,
     };
   }
@@ -18,10 +19,14 @@ export class PayloadsController {
   async generate(
     @Body() input: GeneratePayloadsDto
   ): Promise<{ data: unknown; error: null }> {
+    const sample = this.requireSampleOrSchema(input);
     return {
       data: await this.generator.generate({
-        sample: input.sample,
+        sample,
         ...(input.schema === undefined ? {} : { schema: input.schema }),
+        ...(input.fieldRules === undefined
+          ? {}
+          : { fieldRules: input.fieldRules }),
         count: input.count,
         seedCount: input.seedCount ?? 25,
         edgeCasePercent: input.edgeCasePercent ?? 0,
@@ -29,5 +34,18 @@ export class PayloadsController {
       }),
       error: null,
     };
+  }
+
+  private requireSampleOrSchema(
+    input: GeneratePayloadsDto
+  ): Record<string, unknown> {
+    const source = input.sample ?? input.schema;
+    if (source === undefined) {
+      throw new BadRequestException({
+        code: 'PAYLOAD_SOURCE_REQUIRED',
+        message: 'Provide either a sample payload or JSON Schema',
+      });
+    }
+    return source;
   }
 }

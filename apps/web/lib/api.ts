@@ -27,7 +27,46 @@ export interface TestRun {
   readonly failed: number;
   readonly cancelled: number;
   readonly attemptCount: number;
+  readonly queued: number;
+  readonly inFlight: number;
+  readonly timedOut: number;
   readonly createdAt: string;
+  readonly summary: {
+    readonly actualRequestsPerSecond: number;
+    readonly latencyPercentiles: {
+      readonly p50: number;
+      readonly p90: number;
+      readonly p95: number;
+      readonly p99: number;
+    };
+    readonly errorBreakdown: Readonly<Record<string, number>>;
+  } | null;
+}
+
+export interface PayloadTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly version: number;
+  readonly endpointId: string;
+  readonly payloads: readonly unknown[];
+}
+
+export interface RequestAttempt {
+  readonly id: string;
+  readonly logicalRequestSequence: number;
+  readonly attemptNumber: number;
+  readonly startedAt: string;
+  readonly statusCode: number | null;
+  readonly requestMethod: string;
+  readonly requestUrl: string;
+  readonly requestHeaders: Readonly<Record<string, string>>;
+  readonly responseHeaders: Readonly<Record<string, string>> | null;
+  readonly error: string | null;
+  readonly errorType: string | null;
+  readonly latencyMs: number;
+  readonly requestBodyRef: string | null;
+  readonly responseBodyRef: string | null;
+  readonly bodyTruncated: boolean;
 }
 
 interface ApiEnvelope<T> {
@@ -36,6 +75,8 @@ interface ApiEnvelope<T> {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
+export const API_ORIGIN =
+  process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://localhost:4000';
 
 export async function apiRequest<T>(
   path: string,

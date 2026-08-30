@@ -26,6 +26,7 @@ export class PayloadGeneratorService {
   async generate(input: {
     readonly sample: Record<string, unknown>;
     readonly schema?: Record<string, unknown>;
+    readonly fieldRules?: Record<string, unknown>;
     readonly count: number;
     readonly seedCount: number;
     readonly edgeCasePercent: number;
@@ -52,6 +53,9 @@ export class PayloadGeneratorService {
             input.schema === undefined
               ? ''
               : `JSON Schema: ${JSON.stringify(input.schema)}`,
+            input.fieldRules === undefined
+              ? ''
+              : `Field rules: ${JSON.stringify(input.fieldRules)}`,
           ].join('\n'),
         },
       ],

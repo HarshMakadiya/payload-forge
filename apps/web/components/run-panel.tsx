@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   apiRequest,
   type Endpoint,
   type Environment,
+  type PayloadTemplate,
   type TestRun,
 } from '../lib/api';
+import { RunLogExplorer } from './run-log-explorer';
 
 interface RunPanelProps {
   readonly projectId: string;
@@ -27,10 +29,35 @@ export function RunPanel({
   const [endpointId, setEndpointId] = useState('');
   const [total, setTotal] = useState(100);
   const [durationMinutes, setDurationMinutes] = useState(1);
+  const [rateStrategy, setRateStrategy] = useState<'constant' | 'burst'>(
+    'constant'
+  );
   const [maxConcurrency, setMaxConcurrency] = useState(10);
+  const [ownershipAcknowledged, setOwnershipAcknowledged] = useState(false);
+  const [productionConfirmed, setProductionConfirmed] = useState(false);
+  const [payloadTemplates, setPayloadTemplates] = useState<
+    readonly PayloadTemplate[]
+  >([]);
+  const [payloadTemplateId, setPayloadTemplateId] = useState('');
+  const [inspectedRunId, setInspectedRunId] = useState('');
   const selectedEnvironment = environments.find(
     (environment) => environment.id === environmentId
   );
+
+  useEffect(() => {
+    setProductionConfirmed(false);
+  }, [environmentId]);
+
+  useEffect(() => {
+    setPayloadTemplateId('');
+    if (endpointId === '') {
+      setPayloadTemplates([]);
+      return;
+    }
+    void apiRequest<PayloadTemplate[]>(
+      `/endpoints/${endpointId}/payload-templates`
+    ).then(setPayloadTemplates);
+  }, [endpointId]);
 
   const startRun = async (): Promise<void> => {
     await apiRequest('/runs', {
@@ -41,8 +68,11 @@ export function RunPanel({
         endpointId,
         totalLogicalRequests: total,
         durationMinutes,
+        rateStrategy,
         maxConcurrency,
-        productionConfirmed: selectedEnvironment?.kind === 'PRODUCTION',
+        ownershipAcknowledged,
+        productionConfirmed,
+        ...(payloadTemplateId === '' ? {} : { payloadTemplateId }),
       }),
     });
     await onChanged();
@@ -52,7 +82,16 @@ export function RunPanel({
     runId: string,
     action: 'pause' | 'resume' | 'cancel'
   ): Promise<void> => {
-    await apiRequest(`/runs/${runId}/${action}`, { method: 'POST' });
+    const status =
+      action === 'pause'
+        ? 'PAUSED'
+        : action === 'resume'
+          ? 'RUNNING'
+          : 'CANCELLED';
+    await apiRequest(`/runs/${runId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
     await onChanged();
   };
 
@@ -76,6 +115,20 @@ export function RunPanel({
             {environments.map((environment) => (
               <option key={environment.id} value={environment.id}>
                 {environment.name} · {environment.kind.toLowerCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Payload template
+          <select
+            value={payloadTemplateId}
+            onChange={(event) => setPayloadTemplateId(event.target.value)}
+          >
+            <option value="">Endpoint default</option>
+            {payloadTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name} · v{template.version}
               </option>
             ))}
           </select>
@@ -114,6 +167,18 @@ export function RunPanel({
           />
         </label>
         <label>
+          Rate strategy
+          <select
+            value={rateStrategy}
+            onChange={(event) =>
+              setRateStrategy(event.target.value as 'constant' | 'burst')
+            }
+          >
+            <option value="constant">Constant</option>
+            <option value="burst">Burst</option>
+          </select>
+        </label>
+        <label>
           Max concurrency
           <input
             type="number"
@@ -123,9 +188,32 @@ export function RunPanel({
             onChange={(event) => setMaxConcurrency(Number(event.target.value))}
           />
         </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={ownershipAcknowledged}
+            onChange={(event) => setOwnershipAcknowledged(event.target.checked)}
+          />
+          I own or am authorized to test this target.
+        </label>
+        {selectedEnvironment?.kind === 'PRODUCTION' && (
+          <label className="checkbox-label production-confirmation">
+            <input
+              type="checkbox"
+              checked={productionConfirmed}
+              onChange={(event) => setProductionConfirmed(event.target.checked)}
+            />
+            I confirm this run may send traffic to production.
+          </label>
+        )}
         <button
           className="primary-action"
-          disabled={environmentId === '' || endpointId === ''}
+          disabled={
+            environmentId === '' ||
+            endpointId === '' ||
+            !ownershipAcknowledged ||
+            (selectedEnvironment?.kind === 'PRODUCTION' && !productionConfirmed)
+          }
           onClick={() => void startRun()}
         >
           Start Run
@@ -151,8 +239,31 @@ export function RunPanel({
                 <span className="success">{run.succeeded} passed</span>
                 <span className="danger">{run.failed} failed</span>
                 <span>{run.attemptCount} attempts</span>
+                <span>{run.queued} queued</span>
+                <span>{run.inFlight} in flight</span>
+                <span>{run.timedOut} timed out</span>
+                {run.summary !== null && (
+                  <>
+                    <span>
+                      p95 {run.summary.latencyPercentiles.p95.toFixed(0)} ms
+                    </span>
+                    <span>
+                      {run.summary.actualRequestsPerSecond.toFixed(2)} req/s
+                    </span>
+                    {Object.entries(run.summary.errorBreakdown).map(
+                      ([error, count]) => (
+                        <span className="danger" key={error}>
+                          {error}: {count}
+                        </span>
+                      )
+                    )}
+                  </>
+                )}
               </div>
               <div className="row-actions">
+                <button onClick={() => setInspectedRunId(run.id)}>
+                  Inspect logs
+                </button>
                 {run.status === 'RUNNING' && (
                   <button onClick={() => void control(run.id, 'pause')}>
                     Pause
@@ -176,6 +287,12 @@ export function RunPanel({
           ))
         )}
       </div>
+      {inspectedRunId !== '' && (
+        <RunLogExplorer
+          runId={inspectedRunId}
+          onClose={() => setInspectedRunId('')}
+        />
+      )}
     </section>
   );
 }

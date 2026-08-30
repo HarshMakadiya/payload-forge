@@ -42,9 +42,15 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 3,
       requestsPerMinute: 3,
+      rateStrategy: 'constant',
       maxConcurrency: 1,
       retry: { maxAttempts: 1, backoffMs: 0 },
       payloads: [{ order: 1 }, { order: 2 }, { order: 3 }],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
@@ -61,6 +67,41 @@ describe('RunExecutionService', () => {
       failed: 0,
       cancelled: 0,
     });
+  });
+
+  it('dispatches a burst without rate spacing', async () => {
+    const clock = new RecordingClock();
+    const dispatchTimes: number[] = [];
+    const executor: RequestExecutor = {
+      execute: () => {
+        dispatchTimes.push(clock.now());
+        return Promise.resolve({ statusCode: 200, latencyMs: 1 });
+      },
+    };
+    const snapshot: TestRunSnapshot = {
+      id: 'run-burst',
+      endpoint: {
+        method: 'POST',
+        url: 'https://example.test/orders',
+        headers: {},
+        timeoutMs: 5_000,
+      },
+      totalLogicalRequests: 3,
+      requestsPerMinute: 3,
+      rateStrategy: 'burst',
+      maxConcurrency: 1,
+      retry: { maxAttempts: 1, backoffMs: 0 },
+      payloads: [{ order: 1 }],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
+      randomSeed: 42,
+    };
+
+    await new RunExecutionService(clock, executor).execute(snapshot);
+    expect(dispatchTimes).toEqual([0, 0, 0]);
   });
 
   it('logs retries as attempts and keeps them inside the rate budget', async () => {
@@ -88,9 +129,15 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 1,
       requestsPerMinute: 60,
+      rateStrategy: 'constant',
       maxConcurrency: 1,
       retry: { maxAttempts: 2, backoffMs: 250 },
       payloads: [{ order: 1 }],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
@@ -134,9 +181,15 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 4,
       requestsPerMinute: 60_000,
+      rateStrategy: 'constant',
       maxConcurrency: 2,
       retry: { maxAttempts: 1, backoffMs: 0 },
       payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
@@ -174,9 +227,15 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 3,
       requestsPerMinute: 60,
+      rateStrategy: 'constant',
       maxConcurrency: 1,
       retry: { maxAttempts: 1, backoffMs: 0 },
       payloads: [{ order: 1 }],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
@@ -226,9 +285,15 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 3,
       requestsPerMinute: 60,
+      rateStrategy: 'constant',
       maxConcurrency: 1,
       retry: { maxAttempts: 1, backoffMs: 0 },
       payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
@@ -245,6 +310,61 @@ describe('RunExecutionService', () => {
     const summary = await handle.completion;
     expect(executionCount).toBe(3);
     expect(summary.status).toBe('completed');
+  });
+
+  it('does not dispatch after a pause received during rate waiting', async () => {
+    let releaseRateWait: (() => void) | undefined;
+    let signalRateWait: (() => void) | undefined;
+    const rateWaitStarted = new Promise<void>((resolve) => {
+      signalRateWait = resolve;
+    });
+    const clock: ExecutionClock = {
+      now: () => 0,
+      sleep: () =>
+        new Promise<void>((resolve) => {
+          releaseRateWait = resolve;
+          signalRateWait?.();
+        }),
+    };
+    let executionCount = 0;
+    const executor: RequestExecutor = {
+      execute: () => {
+        executionCount += 1;
+        return Promise.resolve({ statusCode: 200, latencyMs: 1 });
+      },
+    };
+    const snapshot: TestRunSnapshot = {
+      id: 'run-pause-rate-wait',
+      endpoint: {
+        method: 'GET',
+        url: 'https://example.test/health',
+        headers: {},
+        timeoutMs: 5_000,
+      },
+      totalLogicalRequests: 2,
+      requestsPerMinute: 60,
+      rateStrategy: 'constant',
+      maxConcurrency: 2,
+      retry: { maxAttempts: 1, backoffMs: 0 },
+      payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
+      randomSeed: 42,
+    };
+
+    const handle = new RunExecutionService(clock, executor).start(snapshot);
+    await rateWaitStarted;
+    handle.pause();
+    releaseRateWait?.();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(executionCount).toBe(1);
+    handle.resume();
+    await handle.completion;
+    expect(executionCount).toBe(2);
   });
 
   it('publishes persisted progress as attempts complete', async () => {
@@ -274,15 +394,21 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 2,
       requestsPerMinute: 60,
+      rateStrategy: 'constant',
       maxConcurrency: 1,
       retry: { maxAttempts: 1, backoffMs: 0 },
       payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
       randomSeed: 42,
     };
 
     await new RunExecutionService(clock, executor, observer).execute(snapshot);
 
     expect(attempts).toEqual([1, 2]);
-    expect(progress).toEqual([1, 2]);
+    expect(progress).toEqual([0, 1, 1, 2]);
   });
 });

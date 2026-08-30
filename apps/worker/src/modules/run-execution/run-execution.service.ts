@@ -26,6 +26,10 @@ export interface RunProgress {
   readonly attempts: number;
   readonly succeeded: number;
   readonly failed: number;
+  readonly queued: number;
+  readonly inFlight: number;
+  readonly timedOut: number;
+  readonly cancelled: number;
 }
 
 export interface RunExecutionObserver {
@@ -103,10 +107,13 @@ class RateGate {
     private readonly intervalMs: number
   ) {}
 
-  reserve(additionalDelayMs = 0): Promise<void> {
+  reserve(additionalDelayMs = 0, signal?: AbortSignal): Promise<void> {
     const reservation = this.tail.then(async () => {
       if (this.hasDispatchedAttempt) {
-        await this.clock.sleep(Math.max(this.intervalMs, additionalDelayMs));
+        await this.clock.sleep(
+          Math.max(this.intervalMs, additionalDelayMs),
+          signal
+        );
       }
       this.hasDispatchedAttempt = true;
     });
@@ -143,10 +150,17 @@ export class RunExecutionService {
     snapshot: TestRunSnapshot,
     control: RunControl
   ): Promise<RunSummary> {
+    const runStartedAtMs = this.clock.now();
     const attemptsLog: RequestAttempt[] = [];
     let succeeded = 0;
     let failed = 0;
-    const intervalMs = 60_000 / snapshot.requestsPerMinute;
+    let dispatchedLogicalRequests = 0;
+    let inFlight = 0;
+    let timedOut = 0;
+    const intervalMs =
+      snapshot.rateStrategy === 'burst'
+        ? 0
+        : 60_000 / snapshot.requestsPerMinute;
     const rateGate = new RateGate(this.clock, intervalMs);
     let nextLogicalRequestSequence = 1;
 
@@ -163,13 +177,38 @@ export class RunExecutionService {
           return;
         }
         await rateGate.reserve(
-          attemptNumber > 1 ? snapshot.retry.backoffMs : 0
+          attemptNumber > 1
+            ? snapshot.retry.backoffMs +
+                Math.floor(
+                  snapshot.retry.backoffMs *
+                    0.2 *
+                    this.seededFraction(
+                      snapshot.randomSeed,
+                      logicalRequestSequence,
+                      attemptNumber
+                    )
+                )
+            : 0,
+          control.abortController.signal
         );
+        // A pause can arrive while this lane waits for its rate reservation.
+        await control.waitUntilRunnable();
         if (control.getStatus() === 'cancelled') {
           return;
         }
 
         const startedAtMs = this.clock.now();
+        if (attemptNumber === 1) dispatchedLogicalRequests += 1;
+        inFlight += 1;
+        await this.publishProgress({
+          attempts: attemptsLog.length,
+          succeeded,
+          failed,
+          queued: snapshot.totalLogicalRequests - dispatchedLogicalRequests,
+          inFlight,
+          timedOut,
+          cancelled: 0,
+        });
         const result = await this.requestExecutor.execute({
           snapshot,
           logicalRequestSequence,
@@ -180,6 +219,8 @@ export class RunExecutionService {
             ],
           signal: control.abortController.signal,
         });
+        inFlight -= 1;
+        if (result.errorType === 'timeout') timedOut += 1;
         const requestAttempt: RequestAttempt = {
           logicalRequestSequence,
           attemptNumber,
@@ -198,7 +239,15 @@ export class RunExecutionService {
           result.statusCode < 300;
         if (isSuccessful) {
           succeeded += 1;
-          await this.publishProgress(attemptsLog.length, succeeded, failed);
+          await this.publishProgress({
+            attempts: attemptsLog.length,
+            succeeded,
+            failed,
+            queued: snapshot.totalLogicalRequests - dispatchedLogicalRequests,
+            inFlight,
+            timedOut,
+            cancelled: 0,
+          });
           break;
         }
         if (control.getStatus() === 'cancelled') {
@@ -206,7 +255,15 @@ export class RunExecutionService {
         }
         if (attemptNumber === snapshot.retry.maxAttempts) {
           failed += 1;
-          await this.publishProgress(attemptsLog.length, succeeded, failed);
+          await this.publishProgress({
+            attempts: attemptsLog.length,
+            succeeded,
+            failed,
+            queued: snapshot.totalLogicalRequests - dispatchedLogicalRequests,
+            inFlight,
+            timedOut,
+            cancelled: 0,
+          });
         }
       }
     };
@@ -238,6 +295,8 @@ export class RunExecutionService {
     const wasCancelled = control.getStatus() === 'cancelled';
     control.complete();
 
+    const durationMs = Math.max(0, this.clock.now() - runStartedAtMs);
+    const latencies = attemptsLog.map((attempt) => attempt.result.latencyMs);
     return {
       status: wasCancelled ? 'cancelled' : 'completed',
       logicalRequests: snapshot.totalLogicalRequests,
@@ -247,17 +306,60 @@ export class RunExecutionService {
       cancelled: wasCancelled
         ? snapshot.totalLogicalRequests - succeeded - failed
         : 0,
+      durationMs,
+      actualRequestsPerSecond:
+        durationMs === 0
+          ? attemptsLog.length
+          : attemptsLog.length / (durationMs / 1_000),
+      latencyPercentiles: {
+        p50: this.percentile(latencies, 50),
+        p90: this.percentile(latencies, 90),
+        p95: this.percentile(latencies, 95),
+        p99: this.percentile(latencies, 99),
+      },
+      errorBreakdown: attemptsLog.reduce<Record<string, number>>(
+        (breakdown, attempt) => {
+          const key =
+            attempt.result.errorType ??
+            (attempt.result.statusCode === undefined
+              ? 'unknown'
+              : String(attempt.result.statusCode));
+          if (
+            attempt.result.error !== undefined ||
+            (attempt.result.statusCode !== undefined &&
+              (attempt.result.statusCode < 200 ||
+                attempt.result.statusCode >= 300))
+          ) {
+            breakdown[key] = (breakdown[key] ?? 0) + 1;
+          }
+          return breakdown;
+        },
+        {}
+      ),
       attemptsLog,
     };
   }
 
-  private async publishProgress(
-    attempts: number,
-    succeeded: number,
-    failed: number
-  ): Promise<void> {
+  private percentile(values: readonly number[], percentile: number): number {
+    if (values.length === 0) return 0;
+    const sorted = [...values].sort((left, right) => left - right);
+    const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+    return sorted[Math.max(0, index)] ?? 0;
+  }
+
+  private seededFraction(
+    seed: number,
+    sequence: number,
+    attemptNumber: number
+  ): number {
+    let state = (seed ^ sequence ^ (attemptNumber << 16)) >>> 0;
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 4_294_967_296;
+  }
+
+  private async publishProgress(progress: RunProgress): Promise<void> {
     await this.publishObserverEvent(() =>
-      this.observer?.onProgress?.({ attempts, succeeded, failed })
+      this.observer?.onProgress?.(progress)
     );
   }
 

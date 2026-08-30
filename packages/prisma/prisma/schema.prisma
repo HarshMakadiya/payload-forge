@@ -88,6 +88,7 @@ model PayloadTemplate {
   payloads  Json
   source    String
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   endpoint  Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 
@@ -112,8 +113,14 @@ model TestRun {
   failed                Int             @default(0)
   cancelled             Int             @default(0)
   attemptCount          Int             @default(0) @map("attempt_count")
+  queued                Int             @default(0)
+  inFlight              Int             @default(0) @map("in_flight")
+  timedOut              Int             @default(0) @map("timed_out")
+  summary               Json?
   startedAt             DateTime?       @map("started_at")
   finishedAt            DateTime?       @map("finished_at")
+  workerId              String?         @map("worker_id")
+  workerHeartbeatAt     DateTime?       @map("worker_heartbeat_at")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
   project               Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -122,6 +129,8 @@ model TestRun {
   attempts              RequestAttempt[]
 
   @@index([projectId, createdAt])
+  @@index([environmentId])
+  @@index([endpointId])
   @@index([status])
   @@map("test_run")
 }
@@ -134,11 +143,18 @@ model RequestAttempt {
   startedAt              DateTime @map("started_at")
   latencyMs              Int      @map("latency_ms")
   statusCode             Int?     @map("status_code")
+  requestMethod          String   @map("request_method")
+  requestUrl             String   @map("request_url")
+  requestHeaders         Json     @map("request_headers")
+  responseHeaders        Json?    @map("response_headers")
   error                  String?
+  errorType              String?  @map("error_type")
+  searchText             String?  @map("search_text")
   requestBodyRef         String?  @map("request_body_ref")
   responseBodyRef        String?  @map("response_body_ref")
   bodyTruncated          Boolean  @default(false) @map("body_truncated")
   createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
   testRun                TestRun  @relation(fields: [testRunId], references: [id], onDelete: Cascade)
 
   @@unique([testRunId, logicalRequestSequence, attemptNumber])
@@ -146,4 +162,3 @@ model RequestAttempt {
   @@index([testRunId, latencyMs])
   @@map("request_attempt")
 }
-

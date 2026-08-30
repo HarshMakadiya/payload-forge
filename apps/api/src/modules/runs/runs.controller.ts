@@ -2,20 +2,30 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
+import type { Prisma } from '@payload-forge/prisma';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateRunDto, ListAttemptsQuery } from './runs.dto.js';
+import { BodyStorageService } from './body-storage.service.js';
+import {
+  CreateRunDto,
+  ListAttemptsQuery,
+  PurgeProjectRunDataDto,
+  UpdateRunStatusDto,
+} from './runs.dto.js';
 import { RunsService } from './runs.service.js';
 
 @Controller()
 export class RunsController {
   constructor(
     private readonly runs: RunsService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly bodies: BodyStorageService
   ) {}
 
   @Post('runs')
@@ -56,11 +66,31 @@ export class RunsController {
   ): Promise<{ data: unknown; error: null }> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 50;
-    const where = {
+    const where: Prisma.RequestAttemptWhereInput = {
       testRunId: runId,
       ...(query.statusCode === undefined
         ? {}
         : { statusCode: query.statusCode }),
+      ...(query.minLatencyMs === undefined && query.maxLatencyMs === undefined
+        ? {}
+        : {
+            latencyMs: {
+              ...(query.minLatencyMs === undefined
+                ? {}
+                : { gte: query.minLatencyMs }),
+              ...(query.maxLatencyMs === undefined
+                ? {}
+                : { lte: query.maxLatencyMs }),
+            },
+          }),
+      ...(query.keyword === undefined || query.keyword.trim() === ''
+        ? {}
+        : {
+            searchText: { contains: query.keyword.trim(), mode: 'insensitive' },
+          }),
+      ...(query.errorType === undefined || query.errorType === ''
+        ? {}
+        : { errorType: query.errorType }),
     };
     const [items, total] = await Promise.all([
       this.prisma.requestAttempt.findMany({
@@ -74,14 +104,71 @@ export class RunsController {
     return { data: { items, total, page, pageSize }, error: null };
   }
 
-  @Post('runs/:runId/:action')
+  @Get('runs/:runId/logs/:attemptId/:kind/body')
+  async body(
+    @Param('runId') runId: string,
+    @Param('attemptId') attemptId: string,
+    @Param('kind') kind: string
+  ): Promise<{ data: unknown; error: null }> {
+    const attempt = await this.prisma.requestAttempt.findFirstOrThrow({
+      where: { id: attemptId, testRunId: runId },
+      select: { requestBodyRef: true, responseBodyRef: true },
+    });
+    const reference =
+      kind === 'request'
+        ? attempt.requestBodyRef
+        : kind === 'response'
+          ? attempt.responseBodyRef
+          : null;
+    if (reference === null) {
+      return { data: { content: null }, error: null };
+    }
+    return { data: { content: await this.bodies.get(reference) }, error: null };
+  }
+
+  @Delete('projects/:projectId/run-data')
+  async purgeProjectRunData(
+    @Param('projectId') projectId: string,
+    @Body() input: PurgeProjectRunDataDto
+  ): Promise<{ data: unknown; error: null }> {
+    if (!input.confirmed) {
+      throw new BadRequestException({
+        code: 'PURGE_CONFIRMATION_REQUIRED',
+        message: 'Manual run-data purge requires explicit confirmation',
+      });
+    }
+    const activeRun = await this.prisma.testRun.findFirst({
+      where: { projectId, status: { in: ['QUEUED', 'RUNNING', 'PAUSED'] } },
+      select: { id: true },
+    });
+    if (activeRun !== null) {
+      throw new BadRequestException({
+        code: 'PROJECT_HAS_ACTIVE_RUNS',
+        message: 'Cancel active Test Runs before purging project data',
+      });
+    }
+    const runs = await this.prisma.testRun.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+    await this.bodies.purgeRuns(runs.map((run) => run.id));
+    const deleted = await this.prisma.testRun.deleteMany({
+      where: { projectId },
+    });
+    return { data: { deletedRuns: deleted.count }, error: null };
+  }
+
+  @Patch('runs/:runId')
   async control(
     @Param('runId') runId: string,
-    @Param('action') action: string
+    @Body() input: UpdateRunStatusDto
   ): Promise<{ data: unknown; error: null }> {
-    if (action !== 'pause' && action !== 'resume' && action !== 'cancel') {
-      throw new BadRequestException('Unsupported run action');
-    }
+    const action =
+      input.status === 'PAUSED'
+        ? 'pause'
+        : input.status === 'RUNNING'
+          ? 'resume'
+          : 'cancel';
     return { data: await this.runs.control(runId, action), error: null };
   }
 }

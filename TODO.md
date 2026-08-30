@@ -2,10 +2,10 @@
 
 ## Before Implementation
 
-- [ ] Resolve the open questions listed in `qa-tool-spec.md`.
-- [ ] Decide the initial deployment target and object-storage provider.
-- [ ] Set measurable MVP load, latency, retention, and cost limits.
-- [ ] Define the list of fields that must always be redacted.
+- [x] Resolve the open questions listed in `qa-tool-spec.md`.
+- [x] Decide the initial deployment target and object-storage provider.
+- [x] Set measurable MVP load, latency, retention, and cost limits.
+- [x] Define the list of fields that must always be redacted.
 
 ## Backlog
 

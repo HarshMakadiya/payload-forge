@@ -9,7 +9,7 @@ export class RunQueueService implements OnModuleDestroy {
     process.env.REDIS_URL ?? 'redis://localhost:6379',
     { maxRetriesPerRequest: null }
   );
-  private readonly queue = new Queue<RunJobData>('test-runs', {
+  private readonly queue = new Queue<RunJobData>('payload-forge-test-runs', {
     connection: this.connection,
   });
   private readonly controlPublisher = this.connection.duplicate();
@@ -19,7 +19,7 @@ export class RunQueueService implements OnModuleDestroy {
     encryptedSecretHeaders: string | null
   ): Promise<void> {
     await this.queue.add(
-      'execute-run',
+      'run-execute',
       {
         snapshot,
         ...(encryptedSecretHeaders === null ? {} : { encryptedSecretHeaders }),
@@ -41,6 +41,27 @@ export class RunQueueService implements OnModuleDestroy {
       `run-control:${runId}`,
       JSON.stringify({ action })
     );
+  }
+
+  async health(): Promise<{
+    redis: string;
+    queue: Readonly<Record<string, number>>;
+    workerHeartbeat: string | null;
+    droppedRealtimeEvents: number;
+  }> {
+    const [redis, jobs, workerHeartbeat, droppedRealtimeEvents] =
+      await Promise.all([
+        this.connection.ping(),
+        this.queue.getJobCounts('waiting', 'active', 'delayed', 'failed'),
+        this.connection.get('payload-forge:worker-heartbeat'),
+        this.connection.get('payload-forge:dropped-realtime-events'),
+      ]);
+    return {
+      redis,
+      queue: jobs,
+      workerHeartbeat,
+      droppedRealtimeEvents: Number(droppedRealtimeEvents ?? 0),
+    };
   }
 
   async onModuleDestroy(): Promise<void> {

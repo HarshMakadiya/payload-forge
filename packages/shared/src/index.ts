@@ -1,6 +1,12 @@
 export type RunStatus =
   'queued' | 'running' | 'paused' | 'completed' | 'cancelled' | 'interrupted';
 
+export {
+  decodeEncryptionKey,
+  decryptSecretMap,
+  encryptSecretMap,
+} from './secret-crypto.js';
+
 export interface EndpointSnapshot {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly url: string;
@@ -13,12 +19,20 @@ export interface TestRunSnapshot {
   readonly endpoint: EndpointSnapshot;
   readonly totalLogicalRequests: number;
   readonly requestsPerMinute: number;
+  readonly rateStrategy: 'constant' | 'burst';
   readonly maxConcurrency: number;
   readonly retry: {
     readonly maxAttempts: number;
     readonly backoffMs: number;
   };
   readonly payloads: readonly unknown[];
+  readonly environmentVariables: Readonly<Record<string, unknown>>;
+  readonly redactFields: readonly string[];
+  readonly payloadTemplateVersion?: number;
+  readonly assertionVersion?: number;
+  readonly workerVersion: string;
+  readonly targetAuthorizationAcknowledged: true;
+  readonly productionConfirmed: boolean;
   readonly randomSeed: number;
 }
 
@@ -34,6 +48,12 @@ export interface AttemptResult {
   readonly requestBodyRef?: string;
   readonly responseBodyRef?: string;
   readonly bodyTruncated?: boolean;
+  readonly errorType?: 'timeout' | 'network' | 'cancelled' | 'target-policy';
+  readonly searchText?: string;
+  readonly requestMethod?: string;
+  readonly requestUrl?: string;
+  readonly requestHeaders?: Readonly<Record<string, string>>;
+  readonly responseHeaders?: Readonly<Record<string, string>>;
 }
 
 export interface RequestAttempt {
@@ -50,5 +70,14 @@ export interface RunSummary {
   readonly succeeded: number;
   readonly failed: number;
   readonly cancelled: number;
+  readonly durationMs: number;
+  readonly actualRequestsPerSecond: number;
+  readonly latencyPercentiles: {
+    readonly p50: number;
+    readonly p90: number;
+    readonly p95: number;
+    readonly p99: number;
+  };
+  readonly errorBreakdown: Readonly<Record<string, number>>;
   readonly attemptsLog: readonly RequestAttempt[];
 }

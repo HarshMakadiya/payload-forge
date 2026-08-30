@@ -1,16 +1,31 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 @Injectable()
 export class RetentionService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RetentionService.name);
   private cleanupInterval: NodeJS.Timeout | undefined;
 
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit(): void {
-    this.cleanupInterval = setInterval(() => void this.cleanup(), DAY_MS);
+    this.cleanupInterval = setInterval(() => {
+      void this.cleanup().catch((error: unknown) => {
+        this.logger.error({
+          requestId: null,
+          runId: null,
+          event: 'metadata-retention-failed',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }, DAY_MS);
     this.cleanupInterval.unref();
   }
 

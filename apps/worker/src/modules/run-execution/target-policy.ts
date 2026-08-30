@@ -1,6 +1,8 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
+export class TargetPolicyError extends Error {}
+
 function ipToNumber(address: string): number {
   return (
     address
@@ -26,7 +28,11 @@ function isPrivateAddress(address: string): boolean {
     );
   }
   const normalized = address.toLowerCase();
+  if (normalized.startsWith('::ffff:')) {
+    return isPrivateAddress(normalized.slice('::ffff:'.length));
+  }
   return (
+    normalized === '::' ||
     normalized === '::1' ||
     normalized.startsWith('fc') ||
     normalized.startsWith('fd') ||
@@ -38,6 +44,12 @@ function isPrivateAddress(address: string): boolean {
 }
 
 export async function assertTargetAllowed(target: URL): Promise<void> {
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+    throw new TargetPolicyError('Only HTTP and HTTPS targets are supported');
+  }
+  if (target.username !== '' || target.password !== '') {
+    throw new TargetPolicyError('Credentials in target URLs are not supported');
+  }
   const allowlist = new Set(
     (process.env.TARGET_HOST_ALLOWLIST ?? '')
       .split(',')
@@ -47,11 +59,8 @@ export async function assertTargetAllowed(target: URL): Promise<void> {
   if (allowlist.has(target.hostname.toLowerCase())) {
     return;
   }
-  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
-    throw new Error('Only HTTP and HTTPS targets are supported');
-  }
   const addresses = await lookup(target.hostname, { all: true });
   if (addresses.some(({ address }) => isPrivateAddress(address))) {
-    throw new Error('Target resolves to a blocked private address');
+    throw new TargetPolicyError('Target resolves to a blocked private address');
   }
 }

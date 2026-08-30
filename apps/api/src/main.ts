@@ -1,7 +1,10 @@
 import 'reflect-metadata';
 import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { validateApiEnvironment } from './config.js';
+
+validateApiEnvironment();
+const { AppModule } = await import('./app.module.js');
 
 const app = await NestFactory.create(AppModule, {
   logger: new ConsoleLogger({ json: true }),
