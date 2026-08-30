@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { apiRequest, type RequestAttempt } from '../lib/api';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';

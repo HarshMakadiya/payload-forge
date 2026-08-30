@@ -9,6 +9,7 @@ import {
   Copy,
   Database,
   FileCode2,
+  MessageSquareQuote,
   Save,
   Sparkles,
   X,
@@ -31,13 +32,93 @@ interface PayloadLabProps {
   readonly endpoints: readonly Endpoint[];
 }
 
+interface PayloadPreset {
+  readonly name: string;
+  readonly description: string;
+  readonly sample: string;
+}
+
+const PRESETS: readonly PayloadPreset[] = [
+  {
+    name: '🛍️ Checkout Orders',
+    description:
+      'High-value e-commerce checkout orders with multi-currency, discount codes, shipping tiers, and line items.',
+    sample: JSON.stringify(
+      {
+        orderId: 'ord_98765',
+        customer: { name: 'Alex Smith', email: 'alex@example.test', tier: 'VIP' },
+        currency: 'USD',
+        items: [
+          { sku: 'ITEM-01', name: 'Mechanical Keyboard', qty: 1, price: 149.99 },
+          { sku: 'ITEM-02', name: 'USB-C Cable', qty: 2, price: 19.99 },
+        ],
+        totalAmount: 189.97,
+        shippingAddress: { country: 'US', city: 'San Francisco', zip: '94107' },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    name: '🔐 Auth & Edge Cases',
+    description:
+      'Login and session token validation requests with realistic edge cases, SQL/XSS probes, and special characters.',
+    sample: JSON.stringify(
+      {
+        username: 'qa.testuser.99',
+        email: 'qa.user@corp.internal',
+        deviceFingerprint: 'fp_a8f9c01b',
+        attemptOrigin: '192.168.1.100',
+        rememberMe: true,
+      },
+      null,
+      2
+    ),
+  },
+  {
+    name: '💳 Payment Transaction',
+    description:
+      'Payment gateway charge authorizations with card brand varieties, billing addresses, and 3DS challenge states.',
+    sample: JSON.stringify(
+      {
+        transactionId: 'txn_live_9921',
+        amountCents: 4999,
+        currency: 'EUR',
+        paymentMethod: 'card',
+        cardBrand: 'visa',
+        status: 'authorized',
+      },
+      null,
+      2
+    ),
+  },
+  {
+    name: '👤 User Profile / KYC',
+    description:
+      'Customer account onboarding data with age verification, contact numbers, and KYC compliance status.',
+    sample: JSON.stringify(
+      {
+        userId: 'usr_5510',
+        fullName: 'Jordan Taylor',
+        dateOfBirth: '1992-05-14',
+        kycLevel: 'TIER_2',
+        verifiedPhone: '+1-555-0199',
+        locale: 'en-US',
+      },
+      null,
+      2
+    ),
+  },
+];
+
 export function PayloadLab({
   projectId,
   endpoints,
 }: PayloadLabProps): React.ReactElement {
-  const [sample, setSample] = useState(
-    '{\n  "name": "Sample User",\n  "email": "sample@example.test"\n}'
+  const [description, setDescription] = useState(
+    'E-commerce order checkout with realistic customer profiles, varied cart items, currency codes, and delivery addresses'
   );
+  const [sample, setSample] = useState(PRESETS[0]?.sample ?? '');
   const [count, setCount] = useState(100);
   const [schema, setSchema] = useState('');
   const [fieldRules, setFieldRules] = useState('');
@@ -72,6 +153,13 @@ export function PayloadLab({
     }
   };
 
+  const applyPreset = (preset: PayloadPreset): void => {
+    setDescription(preset.description);
+    setSample(preset.sample);
+    setTemplateName(preset.name.replace(/^[^\w\s]+/u, '').trim() + ' Payloads');
+    if (errorMessage) setErrorMessage('');
+  };
+
   const generate = async (): Promise<void> => {
     setErrorMessage('');
     setIsGenerating(true);
@@ -84,12 +172,23 @@ export function PayloadLab({
         throw new Error('Payload count must be between 1 and 10,000');
       }
 
+      if (
+        !description.trim() &&
+        !parsedSample &&
+        !parsedSchema
+      ) {
+        throw new Error(
+          'Please describe the payload type or provide a seed sample JSON.'
+        );
+      }
+
       const result = await apiRequest<{
         payloads: readonly Record<string, unknown>[];
         seedCount: number;
       }>('/payloads/generate', {
         method: 'POST',
         body: JSON.stringify({
+          description: description.trim(),
           ...(parsedSample ? { sample: parsedSample } : {}),
           ...(parsedSchema ? { schema: parsedSchema } : {}),
           ...(parsedRules ? { fieldRules: parsedRules } : {}),
@@ -121,6 +220,7 @@ export function PayloadLab({
       }>('/payloads/estimate', {
         method: 'POST',
         body: JSON.stringify({
+          description: description.trim(),
           ...(parsedSample ? { sample: parsedSample } : {}),
           ...(parsedSchema ? { schema: parsedSchema } : {}),
           count,
@@ -193,12 +293,12 @@ export function PayloadLab({
             AI Payload Studio
           </CardTitle>
           <CardDescription>
-            Generate varied, high-realism synthetic test batches using Claude
-            seed expansion.
+            Describe the payload type or scenario in plain English to generate
+            realistic test batches.
           </CardDescription>
         </div>
         <Badge variant="secondary" className="font-mono text-xs">
-          Claude Seed + Scale Expansion
+          AI Seed + Scale Expansion
         </Badge>
       </CardHeader>
 
@@ -224,19 +324,70 @@ export function PayloadLab({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Authoring Controls */}
           <div className="lg:col-span-7 space-y-5">
-            {/* Step 1 */}
+            
+            {/* Step 1: Natural Language Prompt / Type */}
+            <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <MessageSquareQuote className="h-4 w-4 text-primary" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    1. Describe Payload Type & Scenario
+                  </h3>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  Natural Language Prompt
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  What kind of payload do you want to generate?
+                </label>
+                <Textarea
+                  value={description}
+                  onChange={(event) => {
+                    setDescription(event.target.value);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  rows={2}
+                  placeholder="e.g. High-value international checkout transactions with coupon discounts, multi-currency, and guest checkout flags..."
+                  className="bg-card text-xs"
+                />
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">
+                  Quick Scenario Presets:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className="px-2.5 py-1 text-xs rounded-md bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors cursor-pointer"
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Seed Sample JSON & Schema (Optional) */}
             <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <Code2 className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  1. Data Schema & Seed Sample
+                  2. Seed Sample JSON & Schema (Optional)
                 </h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Sample Seed JSON
+                    Seed Sample JSON
                   </label>
                   <Textarea
                     value={sample}
@@ -268,12 +419,12 @@ export function PayloadLab({
               </div>
             </div>
 
-            {/* Step 2 */}
+            {/* Step 3: Generation Constraints & Estimation */}
             <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <Bot className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  2. Generation Constraints & Estimation
+                  3. Generation Constraints & Estimation
                 </h3>
               </div>
 
@@ -341,12 +492,12 @@ export function PayloadLab({
               </div>
             </div>
 
-            {/* Step 3 */}
+            {/* Step 4: Save as Reusable Template */}
             <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <Database className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  3. Save as Reusable Template
+                  4. Save as Reusable Template
                 </h3>
               </div>
 
@@ -448,9 +599,9 @@ export function PayloadLab({
               </div>
             </div>
 
-            <pre className="flex-1 min-h-[300px] max-h-[500px] overflow-auto p-3.5 rounded-md bg-card border border-border text-xs text-foreground font-mono leading-relaxed">
+            <pre className="flex-1 min-h-[300px] max-h-[550px] overflow-auto p-3.5 rounded-md bg-card border border-border text-xs text-foreground font-mono leading-relaxed">
               {output ||
-                '// Generated payload batches will be previewed here in JSON format.\n// Click "Generate Payloads" to create synthetic test records.'}
+                '// Generated payload batches will be previewed here in JSON format.\n// Describe the payload above and click "Generate Payloads".'}
             </pre>
           </div>
         </div>

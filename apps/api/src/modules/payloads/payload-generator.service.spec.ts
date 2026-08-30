@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { PayloadGeneratorService } from './payload-generator.service.js';
 
-const previousApiKey = process.env.ANTHROPIC_API_KEY;
+const previousAiKey = process.env.AI_API_KEY;
 
 afterEach(() => {
-  if (previousApiKey === undefined) delete process.env.ANTHROPIC_API_KEY;
-  else process.env.ANTHROPIC_API_KEY = previousApiKey;
+  if (previousAiKey === undefined) delete process.env.AI_API_KEY;
+  else process.env.AI_API_KEY = previousAiKey;
 });
 
 describe('PayloadGeneratorService', () => {
@@ -15,8 +15,9 @@ describe('PayloadGeneratorService', () => {
     expect(estimate.estimatedOutputTokens).toBeGreaterThan(0);
   });
 
-  it('fails before any network call when the Anthropic key is absent', async () => {
-    delete process.env.ANTHROPIC_API_KEY;
+  it('fails before any network call when no AI API key is configured', async () => {
+    delete process.env.AI_API_KEY;
+
     await expect(
       new PayloadGeneratorService().generate({
         sample: { name: 'A' },
@@ -25,6 +26,6 @@ describe('PayloadGeneratorService', () => {
         edgeCasePercent: 0,
         randomSeed: 1,
       })
-    ).rejects.toThrow('ANTHROPIC_API_KEY');
+    ).rejects.toThrow('AI_API_KEY');
   });
 });

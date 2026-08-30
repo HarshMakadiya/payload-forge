@@ -13,57 +13,119 @@ export class PayloadGeneratorService {
   private readonly ajv = new Ajv({ allErrors: true, strict: false });
 
   estimate(
-    sample: Record<string, unknown>,
-    seedCount: number
+    sample: Record<string, unknown> | undefined,
+    seedCount: number,
+    description?: string
   ): { estimatedInputTokens: number; estimatedOutputTokens: number } {
-    const sampleCharacters = JSON.stringify(sample).length;
+    const sampleCharacters =
+      JSON.stringify(sample ?? {}).length + (description?.length ?? 0);
     return {
       estimatedInputTokens: Math.ceil(sampleCharacters / 4) + 250,
-      estimatedOutputTokens: Math.ceil((sampleCharacters * seedCount) / 4),
+      estimatedOutputTokens: Math.max(
+        100,
+        Math.ceil((Math.max(50, sampleCharacters) * seedCount) / 4)
+      ),
     };
   }
 
   async generate(input: {
-    readonly sample: Record<string, unknown>;
+    readonly sample?: Record<string, unknown>;
     readonly schema?: Record<string, unknown>;
     readonly fieldRules?: Record<string, unknown>;
+    readonly description?: string;
     readonly count: number;
     readonly seedCount: number;
     readonly edgeCasePercent: number;
     readonly randomSeed: number;
   }): Promise<GenerationResult> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey === undefined) {
+    const apiKey = process.env.AI_API_KEY;
+
+    if (!apiKey) {
       throw new BadRequestException(
-        'ANTHROPIC_API_KEY is required for AI payload generation'
+        'AI_API_KEY is required for AI payload generation'
       );
     }
+
     const seedCount = Math.min(input.seedCount, input.count);
-    const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-20250514',
-      max_tokens: 8_192,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            `Generate ${seedCount} realistic JSON payloads as one JSON array.`,
-            'Return JSON only. Never include real personal data or secrets.',
-            `Sample: ${JSON.stringify(input.sample)}`,
-            input.schema === undefined
-              ? ''
-              : `JSON Schema: ${JSON.stringify(input.schema)}`,
-            input.fieldRules === undefined
-              ? ''
-              : `Field rules: ${JSON.stringify(input.fieldRules)}`,
-          ].join('\n'),
+    const hasSample = input.sample && Object.keys(input.sample).length > 0;
+    const promptContent = [
+      `Generate ${seedCount} realistic JSON payloads as one JSON array.`,
+      'Return JSON only. Never include real personal data or secrets.',
+      input.description && input.description.trim() !== ''
+        ? `Payload Type / Purpose / Instructions: ${input.description.trim()}`
+        : '',
+      hasSample ? `Sample Seed Data: ${JSON.stringify(input.sample)}` : '',
+      input.schema === undefined
+        ? ''
+        : `JSON Schema: ${JSON.stringify(input.schema)}`,
+      input.fieldRules === undefined
+        ? ''
+        : `Field rules & constraints: ${JSON.stringify(input.fieldRules)}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    let text = '';
+    const provider = this.resolveProvider();
+
+    if (provider === 'anthropic') {
+      const client = new Anthropic({ apiKey });
+      const model = process.env.AI_MODEL || 'claude-3-5-sonnet-latest';
+
+      const response = await client.messages.create({
+        model,
+        max_tokens: 8_192,
+        messages: [{ role: 'user', content: promptContent }],
+      });
+      text = response.content
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+    } else {
+      // Generic OpenAI / OpenAI-Compatible (OpenAI, Ollama, OpenRouter, Groq, Mistral, LocalAI, vLLM)
+      const baseUrl = (
+        process.env.AI_BASE_URL || 'https://api.openai.com/v1'
+      ).replace(/\/+$/u, '');
+      const model = process.env.AI_MODEL || 'gpt-4o-mini';
+
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.WEB_ORIGIN || 'http://localhost:3000',
+          'X-Title': 'Payload Forge',
         },
-      ],
-    });
-    const text = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('');
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a high-speed synthetic data generator that outputs strictly valid JSON arrays of objects.',
+            },
+            {
+              role: 'user',
+              content: promptContent,
+            },
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new BadRequestException(
+          `AI Generation Provider error (${response.status}): ${errorBody || response.statusText}`
+        );
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      text = data.choices?.[0]?.message?.content ?? '';
+    }
+
     const seeds = this.parseSeeds(text);
     const validate =
       input.schema === undefined ? undefined : this.ajv.compile(input.schema);
@@ -91,6 +153,7 @@ export class PayloadGeneratorService {
         random() * 100 < input.edgeCasePercent
       ) as Record<string, unknown>;
     });
+
     if (validate !== undefined) {
       const validPayloads = payloads.filter((payload) => validate(payload));
       if (validPayloads.length !== payloads.length) {
@@ -100,12 +163,19 @@ export class PayloadGeneratorService {
         });
       }
     }
+
     const estimate = this.estimate(input.sample, seedCount);
     return {
       payloads,
       seedCount,
       estimatedInputTokens: estimate.estimatedInputTokens,
     };
+  }
+
+  private resolveProvider(): 'anthropic' | 'openai-compatible' {
+    const specified = process.env.AI_PROVIDER?.toLowerCase().trim();
+    if (specified === 'anthropic') return 'anthropic';
+    return 'openai-compatible';
   }
 
   private parseSeeds(text: string): Record<string, unknown>[] {

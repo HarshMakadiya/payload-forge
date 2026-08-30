@@ -12,6 +12,10 @@ import {
 
 export class GeneratePayloadsDto {
   @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
   @IsObject()
   sample?: Record<string, unknown>;
 

@@ -8,9 +8,13 @@ export class PayloadsController {
 
   @Post('estimate')
   estimate(@Body() input: GeneratePayloadsDto): { data: unknown; error: null } {
-    const sample = this.requireSampleOrSchema(input);
+    const source = this.requireSource(input);
     return {
-      data: this.generator.estimate(sample, input.seedCount ?? 25),
+      data: this.generator.estimate(
+        source,
+        input.seedCount ?? 25,
+        input.description
+      ),
       error: null,
     };
   }
@@ -19,10 +23,11 @@ export class PayloadsController {
   async generate(
     @Body() input: GeneratePayloadsDto
   ): Promise<{ data: unknown; error: null }> {
-    const sample = this.requireSampleOrSchema(input);
+    const source = this.requireSource(input);
     return {
       data: await this.generator.generate({
-        sample,
+        sample: source,
+        ...(input.description === undefined ? {} : { description: input.description }),
         ...(input.schema === undefined ? {} : { schema: input.schema }),
         ...(input.fieldRules === undefined
           ? {}
@@ -36,16 +41,16 @@ export class PayloadsController {
     };
   }
 
-  private requireSampleOrSchema(
+  private requireSource(
     input: GeneratePayloadsDto
   ): Record<string, unknown> {
     const source = input.sample ?? input.schema;
-    if (source === undefined) {
+    if (source === undefined && (!input.description || input.description.trim() === '')) {
       throw new BadRequestException({
         code: 'PAYLOAD_SOURCE_REQUIRED',
-        message: 'Provide either a sample payload or JSON Schema',
+        message: 'Provide either a description of the payload, a sample JSON, or a JSON Schema',
       });
     }
-    return source;
+    return source ?? {};
   }
 }
