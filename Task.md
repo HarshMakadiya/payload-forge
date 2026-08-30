@@ -15,6 +15,7 @@
 - [x] Implement project, environment, endpoint, payload-template, test-run, and request-log data models.
 - [x] Implement encrypted secret storage and redaction configuration.
 - [x] Build CRUD APIs for projects, environments, and endpoints.
+- [x] Add dashboard edit and delete controls for projects, environments, and endpoints.
 - [x] Implement endpoint configuration validation and production/target safety guardrails.
 
 ## Phase 2 — Load Execution

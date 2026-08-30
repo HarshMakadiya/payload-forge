@@ -152,13 +152,15 @@ export function Dashboard(): React.ReactElement {
           projects={projects}
           selectedProjectId={selectedProjectId}
           onSelect={setSelectedProjectId}
-          onCreated={loadProjects}
+          onChanged={loadProjects}
         />
 
         {selectedProjectId !== '' && (
           <div className="space-y-6">
             <TargetSetup
               projectId={selectedProjectId}
+              environments={environments}
+              endpoints={endpoints}
               onChanged={loadProjectData}
             />
             <RunPanel
