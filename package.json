@@ -1,0 +1,28 @@
+{
+  "name": "payload-forge",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @payload-forge/shared && npm run build --workspace @payload-forge/prisma && npm run build --workspace @payload-forge/worker && npm run build --workspace @payload-forge/api && npm run build --workspace @payload-forge/web",
+    "dev": "npm run dev --workspace @payload-forge/web",
+    "format": "prettier --write apps packages package.json tsconfig.json tsconfig.base.json vitest.config.ts eslint.config.mjs docker-compose.yml README.md",
+    "format:check": "prettier --check apps packages package.json tsconfig.json tsconfig.base.json vitest.config.ts eslint.config.mjs docker-compose.yml README.md",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --pretty false && npm run typecheck --workspace @payload-forge/web",
+    "lint": "eslint . --max-warnings 0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/node": "^22.18.0",
+    "eslint": "^9.34.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vitest": "^3.2.4"
+  }
+}

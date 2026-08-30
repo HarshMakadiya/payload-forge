@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EnvironmentKind {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+}
+
+enum TestRunStatus {
+  QUEUED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  INTERRUPTED
+  FAILED
+}
+
+model Project {
+  id               String        @id @default(uuid()) @db.Uuid
+  name             String
+  description      String?
+  redactFields     String[]      @default([]) @map("redact_fields")
+  deletedAt        DateTime?     @map("deleted_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  environments     Environment[]
+  endpoints        Endpoint[]
+  payloadTemplates PayloadTemplate[]
+  testRuns         TestRun[]
+
+  @@map("project")
+}
+
+model Environment {
+  id               String          @id @default(uuid()) @db.Uuid
+  projectId        String          @db.Uuid @map("project_id")
+  name             String
+  baseUrl          String          @map("base_url")
+  kind             EnvironmentKind @default(DEVELOPMENT)
+  variables        Json            @default("{}")
+  encryptedSecrets String?         @map("encrypted_secrets")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testRuns         TestRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("environment")
+}
+
+model Endpoint {
+  id             String            @id @default(uuid()) @db.Uuid
+  projectId      String            @db.Uuid @map("project_id")
+  name           String
+  method         String
+  path           String
+  headers        Json              @default("{}")
+  payloadSample  Json?             @map("payload_sample")
+  payloadSchema  Json?             @map("payload_schema")
+  timeoutMs      Int               @default(5000) @map("timeout_ms")
+  retryPolicy    Json              @default("{\"maxAttempts\":1,\"backoffMs\":0}") @map("retry_policy")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  payloadTemplates PayloadTemplate[]
+  testRuns       TestRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("endpoint")
+}
+
+model PayloadTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid @map("project_id")
+  endpointId String  @db.Uuid @map("endpoint_id")
+  name      String
+  version   Int
+  payloads  Json
+  source    String
+  createdAt DateTime @default(now()) @map("created_at")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpoint  Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, name, version])
+  @@index([projectId])
+  @@index([endpointId])
+  @@map("payload_template")
+}
+
+model TestRun {
+  id                    String          @id @default(uuid()) @db.Uuid
+  projectId             String          @db.Uuid @map("project_id")
+  environmentId         String          @db.Uuid @map("environment_id")
+  endpointId            String          @db.Uuid @map("endpoint_id")
+  status                TestRunStatus   @default(QUEUED)
+  snapshot              Json
+  totalLogicalRequests  Int             @map("total_logical_requests")
+  requestsPerMinute     Int             @map("requests_per_minute")
+  maxConcurrency        Int             @map("max_concurrency")
+  randomSeed            Int             @map("random_seed")
+  succeeded             Int             @default(0)
+  failed                Int             @default(0)
+  cancelled             Int             @default(0)
+  attemptCount          Int             @default(0) @map("attempt_count")
+  startedAt             DateTime?       @map("started_at")
+  finishedAt            DateTime?       @map("finished_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  project               Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment           Environment     @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  endpoint              Endpoint        @relation(fields: [endpointId], references: [id], onDelete: Restrict)
+  attempts              RequestAttempt[]
+
+  @@index([projectId, createdAt])
+  @@index([status])
+  @@map("test_run")
+}
+
+model RequestAttempt {
+  id                     String   @id @default(uuid()) @db.Uuid
+  testRunId              String   @db.Uuid @map("test_run_id")
+  logicalRequestSequence Int      @map("logical_request_sequence")
+  attemptNumber          Int      @map("attempt_number")
+  startedAt              DateTime @map("started_at")
+  latencyMs              Int      @map("latency_ms")
+  statusCode             Int?     @map("status_code")
+  error                  String?
+  requestBodyRef         String?  @map("request_body_ref")
+  responseBodyRef        String?  @map("response_body_ref")
+  bodyTruncated          Boolean  @default(false) @map("body_truncated")
+  createdAt              DateTime @default(now()) @map("created_at")
+  testRun                TestRun  @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+
+  @@unique([testRunId, logicalRequestSequence, attemptNumber])
+  @@index([testRunId, statusCode])
+  @@index([testRunId, latencyMs])
+  @@map("request_attempt")
+}
+

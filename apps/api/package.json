@@ -1,0 +1,32 @@
+{
+  "name": "@payload-forge/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.62.0",
+    "@aws-sdk/client-s3": "^3.883.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@payload-forge/prisma": "0.1.0",
+    "@payload-forge/shared": "0.1.0",
+    "ajv": "^8.17.1",
+    "bullmq": "^5.58.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "ioredis": "^5.7.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "tsx": "^4.20.5"
+  }
+}
