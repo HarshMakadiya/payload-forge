@@ -10,6 +10,8 @@ Personal, self-hosted REST/HTTP load testing with controlled traffic, searchable
 4. Run `docker compose up --build`.
 5. Open `http://localhost:3000`. MinIO console is at `http://localhost:9001`.
 
+If port 3000 is already in use, set `WEB_PORT` and `WEB_ORIGIN` together in `.env` (for example, `WEB_PORT=3001` and `WEB_ORIGIN=http://localhost:3001`).
+
 Private, loopback, link-local, and cloud-metadata targets are blocked by default. For an API you intentionally run on a private network, add its hostname to `TARGET_HOST_ALLOWLIST`.
 
 ## Development

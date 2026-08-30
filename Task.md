@@ -5,6 +5,7 @@
 - [x] Confirm the open questions in `qa-tool-spec.md` and record outcomes in `DECISIONS.md`.
 - [x] Define project conventions in `CONVENTIONS.md`.
 - [x] Bootstrap the Next.js, NestJS API, NestJS worker, PostgreSQL, and Redis/BullMQ workspace.
+- [x] Complete a Docker Compose runtime smoke test for the API, worker, web app, PostgreSQL, Redis, and MinIO.
 - [ ] Establish environment configuration, migrations, local development, linting, tests, and CI.
 
 ## Phase 1 — MVP Domain and API

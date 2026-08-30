@@ -68,7 +68,7 @@ services:
       - /bin/sh
       - -c
       - >-
-        ./node_modules/.bin/prisma db push --schema packages/prisma/prisma/schema.prisma &&
+        npm run db:push --workspace @payload-forge/prisma &&
         npm run start --workspace @payload-forge/api
     environment: &backend-environment
       DATABASE_URL: postgresql://payload_forge:payload_forge@postgres:5432/payload_forge
@@ -83,7 +83,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
       TARGET_HOST_ALLOWLIST: ${TARGET_HOST_ALLOWLIST:-}
-      WEB_ORIGIN: http://localhost:3000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       METADATA_RETENTION_DAYS: 30
       CAPTURE_BODIES: 'true'
       MAX_CAPTURED_BODY_BYTES: 262144
@@ -100,6 +100,11 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:4000/v1/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   worker:
     build:
@@ -109,7 +114,7 @@ services:
     environment: *backend-environment
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
 
   web:
     build:
@@ -120,9 +125,15 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:4000/v1
       NEXT_PUBLIC_API_ORIGIN: http://localhost:4000
     ports:
-      - '3000:3000'
+      - '${WEB_PORT:-3000}:3000'
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000']
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   postgres-data:
