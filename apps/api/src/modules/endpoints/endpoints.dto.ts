@@ -39,3 +39,34 @@ export class CreateEndpointDto {
   @Max(120_000)
   timeoutMs?: number;
 }
+
+export class UpdateEndpointDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsIn(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+  method?: string;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsObject()
+  headers?: Record<string, string>;
+
+  @IsOptional()
+  payloadSample?: unknown;
+
+  @IsOptional()
+  @IsObject()
+  payloadSchema?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  @Max(120_000)
+  timeoutMs?: number;
+}

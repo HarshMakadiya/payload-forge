@@ -29,3 +29,25 @@ export class CreateEnvironmentDto {
   @IsObject()
   secrets?: Record<string, string>;
 }
+
+export class UpdateEnvironmentDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  baseUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isProduction?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  variables?: Record<string, string>;
+
+  @IsOptional()
+  @IsObject()
+  secrets?: Record<string, string>;
+}

@@ -15,3 +15,20 @@ export class CreateProjectDto {
   @IsString({ each: true })
   redactFields?: string[];
 }
+
+export class UpdateProjectDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1_000)
+  description?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  redactFields?: string[];
+}

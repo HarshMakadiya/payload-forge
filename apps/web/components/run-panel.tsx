@@ -66,6 +66,7 @@ export function RunPanel({
   const [inspectedRunId, setInspectedRunId] = useState('');
   const [cockpitRunId, setCockpitRunId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [runError, setRunError] = useState('');
 
   const selectedEnvironment = environments.find(
@@ -98,6 +99,20 @@ export function RunPanel({
     return (total / (Math.max(1, durationMinutes) * 60)).toFixed(1);
   }, [durationMinutes, total]);
 
+  const isConfigurationReady =
+    environmentId !== '' &&
+    endpointId !== '' &&
+    total >= 1 &&
+    durationMinutes >= 1;
+  const isWithinConfiguredLimits =
+    total <= 1_000_000 &&
+    plannedRpm <= 10_000 &&
+    maxConcurrency >= 1 &&
+    maxConcurrency <= 500;
+  const selectedPayloadTemplate = payloadTemplates.find(
+    (template) => template.id === payloadTemplateId
+  );
+
   const startRun = async (): Promise<void> => {
     setRunError('');
     setIsSubmitting(true);
@@ -118,6 +133,7 @@ export function RunPanel({
         }),
       });
       setCockpitRunId(newRun.id);
+      setIsReviewOpen(false);
       await onChanged();
     } catch (caught: unknown) {
       setRunError(
@@ -155,16 +171,16 @@ export function RunPanel({
   };
 
   const isLaunchReady =
-    environmentId !== '' &&
-    endpointId !== '' &&
+    isConfigurationReady &&
+    isWithinConfiguredLimits &&
     ownershipAcknowledged &&
     (selectedEnvironment?.kind !== 'PRODUCTION' || productionConfirmed);
 
   const handleFormKeyDown = (event: React.KeyboardEvent): void => {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-      if (isLaunchReady && !isSubmitting) {
+      if (isConfigurationReady) {
         event.preventDefault();
-        void startRun();
+        setIsReviewOpen(true);
       }
     }
   };
@@ -190,7 +206,7 @@ export function RunPanel({
             variant="secondary"
             className="font-mono text-[11px] text-muted-foreground"
           >
-            10k req/min max · ⌘⏎ to start
+            10k req/min max · ⌘⏎ to review
           </Badge>
         </div>
       </CardHeader>
@@ -333,40 +349,6 @@ export function RunPanel({
               className="bg-card"
             />
           </div>
-
-          {/* Authorization Checkboxes */}
-          <div className="sm:col-span-2 lg:col-span-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-border">
-            <label className="flex items-center gap-2.5 text-xs text-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={ownershipAcknowledged}
-                onChange={(event) =>
-                  setOwnershipAcknowledged(event.target.checked)
-                }
-                className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary accent-primary"
-              />
-              <span className="font-medium">
-                I own or am authorized to test this target.
-              </span>
-            </label>
-
-            {selectedEnvironment?.kind === 'PRODUCTION' && (
-              <label className="flex items-center gap-2.5 text-xs text-warning cursor-pointer select-none bg-warning/10 px-3 py-1.5 rounded-md border border-warning/20">
-                <input
-                  type="checkbox"
-                  checked={productionConfirmed}
-                  onChange={(event) =>
-                    setProductionConfirmed(event.target.checked)
-                  }
-                  className="h-4 w-4 rounded border-warning bg-card text-warning focus:ring-warning accent-warning"
-                />
-                <span className="font-semibold flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4" />
-                  Confirm sending traffic to PRODUCTION.
-                </span>
-              </label>
-            )}
-          </div>
         </div>
 
         {/* Preflight Summary Bar */}
@@ -413,19 +395,199 @@ export function RunPanel({
 
           <Button
             size="lg"
-            disabled={isSubmitting || !isLaunchReady}
-            onClick={() => void startRun()}
+            disabled={!isConfigurationReady}
+            onClick={() => setIsReviewOpen(true)}
             className="w-full lg:w-auto font-bold tracking-wide"
             title={
-              !isLaunchReady
-                ? 'Select environment, endpoint, and acknowledge authorization (⌘⏎)'
-                : 'Launch controlled load test (⌘⏎)'
+              !isConfigurationReady
+                ? 'Select a target, endpoint, request count, and duration (⌘⏎)'
+                : 'Review this controlled load test before starting (⌘⏎)'
             }
           >
             <Rocket className="h-4 w-4 mr-2" />
-            {isSubmitting ? 'Starting Run…' : 'Start Test Run'}
+            Review Run
           </Button>
         </div>
+
+        {isReviewOpen && (
+          <section
+            aria-labelledby="run-review-heading"
+            className="space-y-5 rounded-lg border border-primary/40 bg-primary/5 p-5"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <h3
+                  id="run-review-heading"
+                  className="flex items-center gap-2 text-base font-bold text-foreground"
+                >
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  Review this run
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Traffic is not sent until you confirm the checks below.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsReviewOpen(false)}
+                disabled={isSubmitting}
+              >
+                Back to setup
+              </Button>
+            </div>
+
+            <dl className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Destination
+                </dt>
+                <dd className="break-all font-mono text-xs font-semibold text-foreground">
+                  {selectedEndpoint?.method} {selectedEnvironment?.baseUrl}
+                  {selectedEndpoint?.path}
+                </dd>
+              </div>
+              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Load profile
+                </dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {total.toLocaleString()} logical requests over{' '}
+                  {durationMinutes}{' '}
+                  {durationMinutes === 1 ? 'minute' : 'minutes'} ·{' '}
+                  {rateStrategy} pacing · {maxConcurrency} workers
+                </dd>
+              </div>
+              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Estimated impact
+                </dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {plannedRpm.toLocaleString()} req/min{' '}
+                  <span className="font-mono text-xs font-normal text-muted-foreground">
+                    ({plannedRps} req/s)
+                  </span>
+                </dd>
+              </div>
+              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Payload source
+                </dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {selectedPayloadTemplate === undefined
+                    ? 'Endpoint default sample'
+                    : `${selectedPayloadTemplate.name} · v${selectedPayloadTemplate.version}`}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">
+                Safety checks
+              </h4>
+              <ul className="divide-y divide-border rounded-lg border border-border bg-card text-sm">
+                <li className="flex gap-3 px-4 py-3">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Target policy
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The server revalidates this target before it dispatches
+                      traffic.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3 px-4 py-3">
+                  {isWithinConfiguredLimits ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  )}
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {isWithinConfiguredLimits
+                        ? 'Configured limits are within range'
+                        : 'Configured limits need adjustment'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Maximum 1,000,000 requests, 10,000 req/min, and 500
+                      workers.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3 px-4 py-3">
+                  {selectedEnvironment?.kind === 'PRODUCTION' ? (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  )}
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {selectedEnvironment?.kind === 'PRODUCTION'
+                        ? 'Production target selected'
+                        : 'Non-production target selected'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedEnvironment?.kind === 'PRODUCTION'
+                        ? 'A second acknowledgement and stricter server limits are required.'
+                        : 'Standard authorization acknowledgement is required.'}
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={ownershipAcknowledged}
+                  onChange={(event) =>
+                    setOwnershipAcknowledged(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary accent-primary"
+                />
+                <span className="font-medium">
+                  I own or am authorized to test this target.
+                </span>
+              </label>
+
+              {selectedEnvironment?.kind === 'PRODUCTION' && (
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                  <input
+                    type="checkbox"
+                    checked={productionConfirmed}
+                    onChange={(event) =>
+                      setProductionConfirmed(event.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-warning bg-card text-warning focus:ring-warning accent-warning"
+                  />
+                  <span className="font-semibold">
+                    I confirm this run will send traffic to PRODUCTION.
+                  </span>
+                </label>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {isLaunchReady
+                  ? 'Ready to start. The server will perform final validation.'
+                  : 'Complete every acknowledgement and resolve any limit issue to start.'}
+              </p>
+              <Button
+                size="lg"
+                disabled={isSubmitting || !isLaunchReady}
+                onClick={() => void startRun()}
+                className="font-bold tracking-wide"
+              >
+                <Rocket className="mr-2 h-4 w-4" />
+                {isSubmitting ? 'Starting Run…' : 'Start Test Run'}
+              </Button>
+            </div>
+          </section>
+        )}
 
         {runError !== '' && (
           <div

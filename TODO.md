@@ -9,6 +9,7 @@
 
 ## Backlog
 
+- [ ] Record a staging target owner, authorization, and change window before the first staging smoke run.
 - [ ] Decide whether OpenAPI import belongs in Phase 2 or should be promoted.
 - [ ] Define requirements for GraphQL, WebSocket, and gRPC support after the HTTP MVP.
 - [ ] Decide whether collaboration and multi-tenancy are in scope after v1.

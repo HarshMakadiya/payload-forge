@@ -10,7 +10,10 @@ COPY packages/shared/package.json packages/shared/package.json
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Local development links apps/web/.env to the root secret file. The Docker
+# context excludes that secret file, so remove the dangling link before Next.js
+# resolves environment files during the production build.
+RUN rm -f apps/web/.env && npm run build
 
 FROM node:22.13-alpine AS runtime
 WORKDIR /app
@@ -19,4 +22,3 @@ COPY --from=build /app /app
 ARG APP
 ENV PAYLOAD_FORGE_APP=${APP}
 CMD ["sh", "-c", "npm run start --workspace @payload-forge/${PAYLOAD_FORGE_APP}"]
-

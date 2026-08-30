@@ -16,6 +16,7 @@ Record decisions here when they are made. Keep superseded decisions for history 
 | 2026-08-30 | Accepted | Keep v1 owner-only; make the self-hosted deployment portable for private team hosting later. | The product begins as a personal project and does not yet need account, role, or tenancy complexity. | Team authentication, roles, and project sharing move to Phase 2. |
 | 2026-08-30 | Accepted | Use MinIO in local Docker Compose through an S3-compatible storage interface. | It provides local object storage now and a provider-independent path to a hosted S3-compatible service later. | Body-blob storage must use the S3-compatible abstraction. |
 | 2026-08-30 | Accepted | Accept only synthetic or anonymized CSV/JSON payload data in v1. | This protects sensitive data in local storage, logs, and AI-assisted payload generation. | Documentation and validation must warn against uploading real production data. |
+| 2026-08-30 | Accepted | Require a review step before every Test Run starts. | The operator must understand the target, traffic impact, limits, and authorization before any traffic is sent. | The dashboard separates configuration from a final preflight; production retains its second acknowledgement and stricter caps. |
 
 ## Pending Decisions
 

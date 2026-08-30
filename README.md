@@ -14,6 +14,8 @@ If port 3000 is already in use, set `WEB_PORT` and `WEB_ORIGIN` together in `.en
 
 Private, loopback, link-local, and cloud-metadata targets are blocked by default. For an API you intentionally run on a private network, add its hostname to `TARGET_HOST_ALLOWLIST`.
 
+See [the MVP release checklist](docs/release-checklist.md) before making a deployment available.
+
 ## Development
 
 ```bash
