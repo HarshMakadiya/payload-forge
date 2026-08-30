@@ -82,18 +82,40 @@ export async function apiRequest<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  const envelope = (await response.json()) as ApiEnvelope<T>;
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        'content-type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  } catch (networkError: unknown) {
+    // Network failure (CORS preflight blocked, server offline, DNS failure)
+    throw new Error(
+      networkError instanceof Error
+        ? `Network error: ${networkError.message}`
+        : 'Network error: Failed to reach the API'
+    );
+  }
+
+  let envelope: ApiEnvelope<T> | undefined;
+  try {
+    envelope = (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    throw new Error(`API returned a non-JSON response (${response.status})`);
+  }
+
   if (!response.ok || envelope.error !== null) {
     throw new Error(
       envelope.error?.message ?? `Request failed: ${response.status}`
     );
   }
+
+  if (envelope.data === undefined) {
+    throw new Error(`API response missing data field (${response.status})`);
+  }
+
   return envelope.data;
 }

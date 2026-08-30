@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-30T12:00:56Z",
+  "title": "Design System: Payload Forge",
+  "extensions": {
+    "colorMeta": {
+      "blackened-evergreen": {
+        "role": "neutral",
+        "displayName": "Blackened Evergreen",
+        "canonical": "#07100d",
+        "tonalRamp": [
+          "oklch(15% 0.025 160)",
+          "oklch(25% 0.025 160)",
+          "oklch(35% 0.025 160)",
+          "oklch(45% 0.025 160)",
+          "oklch(55% 0.025 160)",
+          "oklch(68% 0.025 160)",
+          "oklch(82% 0.025 160)",
+          "oklch(95% 0.025 160)"
+        ]
+      },
+      "deep-workbench": {
+        "role": "neutral",
+        "displayName": "Deep Workbench",
+        "canonical": "#0d1915",
+        "tonalRamp": [
+          "oklch(15% 0.03 160)",
+          "oklch(25% 0.03 160)",
+          "oklch(35% 0.03 160)",
+          "oklch(45% 0.03 160)",
+          "oklch(55% 0.03 160)",
+          "oklch(68% 0.03 160)",
+          "oklch(82% 0.03 160)",
+          "oklch(95% 0.03 160)"
+        ]
+      },
+      "reinforced-workbench": {
+        "role": "neutral",
+        "displayName": "Reinforced Workbench",
+        "canonical": "#12231d",
+        "tonalRamp": [
+          "oklch(15% 0.035 160)",
+          "oklch(25% 0.035 160)",
+          "oklch(35% 0.035 160)",
+          "oklch(45% 0.035 160)",
+          "oklch(55% 0.035 160)",
+          "oklch(68% 0.035 160)",
+          "oklch(82% 0.035 160)",
+          "oklch(95% 0.035 160)"
+        ]
+      },
+      "circuit-line": {
+        "role": "neutral",
+        "displayName": "Circuit Line",
+        "canonical": "#254039",
+        "tonalRamp": [
+          "oklch(15% 0.04 160)",
+          "oklch(25% 0.04 160)",
+          "oklch(35% 0.04 160)",
+          "oklch(45% 0.04 160)",
+          "oklch(55% 0.04 160)",
+          "oklch(68% 0.04 160)",
+          "oklch(82% 0.04 160)",
+          "oklch(95% 0.04 160)"
+        ]
+      },
+      "chalk-white": {
+        "role": "neutral",
+        "displayName": "Chalk White",
+        "canonical": "#edf8f1",
+        "tonalRamp": [
+          "oklch(15% 0.015 150)",
+          "oklch(25% 0.015 150)",
+          "oklch(35% 0.015 150)",
+          "oklch(45% 0.015 150)",
+          "oklch(55% 0.015 150)",
+          "oklch(68% 0.015 150)",
+          "oklch(82% 0.015 150)",
+          "oklch(95% 0.015 150)"
+        ]
+      },
+      "muted-sage": {
+        "role": "neutral",
+        "displayName": "Muted Sage",
+        "canonical": "#8da69b",
+        "tonalRamp": [
+          "oklch(15% 0.035 160)",
+          "oklch(25% 0.035 160)",
+          "oklch(35% 0.035 160)",
+          "oklch(45% 0.035 160)",
+          "oklch(55% 0.035 160)",
+          "oklch(68% 0.035 160)",
+          "oklch(82% 0.035 160)",
+          "oklch(95% 0.035 160)"
+        ]
+      },
+      "signal-lime": {
+        "role": "primary",
+        "displayName": "Signal Lime",
+        "canonical": "#c7f56f",
+        "tonalRamp": [
+          "oklch(15% 0.14 120)",
+          "oklch(25% 0.14 120)",
+          "oklch(35% 0.14 120)",
+          "oklch(45% 0.14 120)",
+          "oklch(55% 0.14 120)",
+          "oklch(68% 0.14 120)",
+          "oklch(82% 0.14 120)",
+          "oklch(95% 0.14 120)"
+        ]
+      },
+      "live-mint": {
+        "role": "secondary",
+        "displayName": "Live Mint",
+        "canonical": "#63d6a3",
+        "tonalRamp": [
+          "oklch(15% 0.11 160)",
+          "oklch(25% 0.11 160)",
+          "oklch(35% 0.11 160)",
+          "oklch(45% 0.11 160)",
+          "oklch(55% 0.11 160)",
+          "oklch(68% 0.11 160)",
+          "oklch(82% 0.11 160)",
+          "oklch(95% 0.11 160)"
+        ]
+      },
+      "alert-coral": {
+        "role": "tertiary",
+        "displayName": "Alert Coral",
+        "canonical": "#ff826f",
+        "tonalRamp": [
+          "oklch(15% 0.14 25)",
+          "oklch(25% 0.14 25)",
+          "oklch(35% 0.14 25)",
+          "oklch(45% 0.14 25)",
+          "oklch(55% 0.14 25)",
+          "oklch(68% 0.14 25)",
+          "oklch(82% 0.14 25)",
+          "oklch(95% 0.14 25)"
+        ]
+      },
+      "control-surface": {
+        "role": "neutral",
+        "displayName": "Control Surface",
+        "canonical": "#172a22",
+        "tonalRamp": [
+          "oklch(15% 0.035 160)",
+          "oklch(25% 0.035 160)",
+          "oklch(35% 0.035 160)",
+          "oklch(45% 0.035 160)",
+          "oklch(55% 0.035 160)",
+          "oklch(68% 0.035 160)",
+          "oklch(82% 0.035 160)",
+          "oklch(95% 0.035 160)"
+        ]
+      },
+      "field-surface": {
+        "role": "neutral",
+        "displayName": "Field Surface",
+        "canonical": "#09130f",
+        "tonalRamp": [
+          "oklch(15% 0.025 160)",
+          "oklch(25% 0.025 160)",
+          "oklch(35% 0.025 160)",
+          "oklch(45% 0.025 160)",
+          "oklch(55% 0.025 160)",
+          "oklch(68% 0.025 160)",
+          "oklch(82% 0.025 160)",
+          "oklch(95% 0.025 160)"
+        ]
+      },
+      "action-ink": {
+        "role": "neutral",
+        "displayName": "Action Ink",
+        "canonical": "#111a11",
+        "tonalRamp": [
+          "oklch(15% 0.025 145)",
+          "oklch(25% 0.025 145)",
+          "oklch(35% 0.025 145)",
+          "oklch(45% 0.025 145)",
+          "oklch(55% 0.025 145)",
+          "oklch(68% 0.025 145)",
+          "oklch(82% 0.025 145)",
+          "oklch(95% 0.025 145)"
+        ]
+      },
+      "caution-amber": {
+        "role": "tertiary",
+        "displayName": "Caution Amber",
+        "canonical": "#ffcc8a",
+        "tonalRamp": [
+          "oklch(15% 0.12 75)",
+          "oklch(25% 0.12 75)",
+          "oklch(35% 0.12 75)",
+          "oklch(45% 0.12 75)",
+          "oklch(55% 0.12 75)",
+          "oklch(68% 0.12 75)",
+          "oklch(82% 0.12 75)",
+          "oklch(95% 0.12 75)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The single page-level proposition."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Major operational panel titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Configuration group and subsection titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Controls, values, and explanatory copy."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Buttons and operational controls."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels and supporting state."
+      },
+      "mono-label": {
+        "displayName": "Instrument Label",
+        "purpose": "Uppercase section framing and machine-adjacent metadata."
+      },
+      "mono-code": {
+        "displayName": "Code",
+        "purpose": "Payload and captured-body content."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-ambient",
+        "value": "0 18px 70px rgba(0, 0, 0, 0.18)",
+        "purpose": "Broad ambient lift for major work panels only."
+      },
+      {
+        "name": "live-pulse",
+        "value": "0 0 0 5px rgba(99, 214, 163, 0.12)",
+        "purpose": "Compact live-state halo around the status point."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact-dashboard", "value": "980px" },
+      { "name": "single-column", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The decisive action within an operational region.",
+      "html": "<button class=\"ds-btn-primary\">Start Run</button>",
+      "css": ".ds-btn-primary { background: var(--lime, #c7f56f); color: #111a11; padding: 0.72rem 1rem; border: 1px solid var(--lime, #c7f56f); border-radius: 10px; font: 700 1rem Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.04); } .ds-btn-primary:focus-visible { outline: 3px solid var(--mint, #63d6a3); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A tactile secondary control for configuration and inspection actions.",
+      "html": "<button class=\"ds-btn-secondary\">Inspect logs</button>",
+      "css": ".ds-btn-secondary { background: #172a22; color: var(--text, #edf8f1); padding: 0.72rem 1rem; border: 1px solid #496457; border-radius: 10px; font: 700 1rem Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-btn-secondary:hover { border-color: var(--lime, #c7f56f); } .ds-btn-secondary:focus-visible { outline: 3px solid var(--mint, #63d6a3); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A compact dark field with an explicit structural boundary.",
+      "html": "<label class=\"ds-field-label\">Endpoint name<input class=\"ds-field\" value=\"Create payload\"></label>",
+      "css": ".ds-field-label { display: grid; gap: 0.4rem; color: var(--muted, #8da69b); font: 400 0.82rem Inter, ui-sans-serif, system-ui, sans-serif; } .ds-field { width: 100%; box-sizing: border-box; background: #09130f; color: var(--text, #edf8f1); padding: 0.72rem 0.8rem; border: 1px solid var(--line, #254039); border-radius: 10px; font: 400 1rem Inter, ui-sans-serif, system-ui, sans-serif; } .ds-field:focus-visible { outline: 3px solid var(--mint, #63d6a3); outline-offset: 1px; border-color: var(--mint, #63d6a3); }"
+    },
+    {
+      "name": "Work Panel",
+      "kind": "card",
+      "description": "A major operational container with tonal depth and restrained ambient lift.",
+      "html": "<section class=\"ds-panel\"><span class=\"ds-panel-label\">EXECUTION</span><h2>Launch Test Run</h2><p>Configure traffic and observe every attempt.</p></section>",
+      "css": ".ds-panel { color: var(--text, #edf8f1); background: linear-gradient(150deg, rgba(18, 35, 29, 0.96), rgba(10, 20, 16, 0.96)); border: 1px solid var(--line, #254039); border-radius: 16px; padding: 1.25rem; box-shadow: 0 18px 70px rgba(0, 0, 0, 0.18); font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-panel h2 { margin: 0.35rem 0 0.6rem; letter-spacing: -0.025em; } .ds-panel p { margin: 0; color: var(--muted, #8da69b); } .ds-panel-label { color: var(--mint, #63d6a3); font: 700 0.72rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.15em; }"
+    },
+    {
+      "name": "Run Status Chip",
+      "kind": "chip",
+      "description": "A compact status label that pairs color with an explicit state name.",
+      "html": "<span class=\"ds-status-running\">RUNNING</span>",
+      "css": ".ds-status-running { display: inline-block; padding: 0.3rem 0.55rem; border-radius: 999px; background: #25362e; color: var(--lime, #c7f56f); font: 800 0.68rem Inter, ui-sans-serif, system-ui, sans-serif; } .ds-status-running:focus-visible { outline: 3px solid var(--mint, #63d6a3); outline-offset: 2px; }"
+    },
+    {
+      "name": "Payload Preview",
+      "kind": "custom",
+      "description": "A scroll-contained machine-data surface for generated payloads and captured bodies.",
+      "html": "<pre class=\"ds-payload\">{\n  &quot;status&quot;: &quot;ready&quot;\n}</pre>",
+      "css": ".ds-payload { min-height: 8rem; overflow: auto; margin: 0; padding: 1rem; border: 1px solid var(--line, #254039); border-radius: 12px; background: #06100c; color: #bde9cf; font: 400 0.78rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }"
+    },
+    {
+      "name": "Error Banner",
+      "kind": "custom",
+      "description": "An explicit failure surface with coral text, boundary, and tinted depth.",
+      "html": "<div class=\"ds-error\" role=\"alert\">Unable to load project</div>",
+      "css": ".ds-error { padding: 0.8rem 1rem; border: 1px solid #713f37; border-radius: 12px; background: rgba(113, 63, 55, 0.25); color: #ffb4a8; font: 400 1rem Inter, ui-sans-serif, system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Signal Forge",
+    "overview": "Payload Forge is a dark operational workbench where traffic is shaped deliberately and every result remains visible. Its atmosphere is precise, instrument-like, safety-conscious, and confident without becoming aggressive. Deep green-black surfaces create concentration while lime and mint behave like active readouts rather than decoration.\n\nThe system is compact and information-forward, but major work areas retain enough breathing room to support long-running operational tasks. It rejects noisy gamer dashboards, decorative glassmorphism, and generic neon science-fiction styling; the interface should feel like a dependable engineering instrument, not a theatrical simulation of one.",
+    "keyCharacteristics": [
+      "Green-black tonal depth with restrained ambient lift.",
+      "Lime reserved for decisive actions and running-state emphasis.",
+      "Mint used for live, healthy, and successful signals.",
+      "Compact controls with confident weight and explicit boundaries.",
+      "Monospaced uppercase labels that frame operational sections."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rarity Rule",
+        "body": "Signal Lime is reserved for the one decisive action or live emphasis in a region; its scarcity gives it authority.",
+        "section": "colors"
+      },
+      {
+        "name": "The State Has Words Rule",
+        "body": "Status colors must always appear with an explicit label, count, or state name so meaning never depends on color alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Instrument Label Rule",
+        "body": "Monospaced uppercase type is reserved for section framing and machine-adjacent information, never for paragraphs or primary task labels.",
+        "section": "typography"
+      },
+      {
+        "name": "The Work Before Chrome Rule",
+        "body": "Wide space belongs to forms, metrics, logs, and payloads; branding and system framing remain compact.",
+        "section": "layout"
+      },
+      {
+        "name": "The Layer Before Shadow Rule",
+        "body": "Use surface tone and borders to establish structure first; shadows are reserved for major work regions or an explicit live-state signal.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** reserve Signal Lime for decisive actions and active operational emphasis.",
+      "**Do** pair every status color with clear text, counts, or state names.",
+      "**Do** keep dense information aligned to stable grids and preserve horizontal scrolling for wide logs.",
+      "**Do** establish hierarchy with tonal layers and borders before adding shadow.",
+      "**Do** use monospaced uppercase labels to frame machine-adjacent sections."
+    ],
+    "donts": [
+      "**Don't** turn the interface into a noisy gamer dashboard or generic neon science-fiction scene.",
+      "**Don't** introduce decorative glassmorphism, borderless floating cards, or glow on every component.",
+      "**Don't** use lime, mint, coral, or amber as interchangeable decoration; each has a defined operational role.",
+      "**Don't** communicate success, failure, production risk, or run state through color alone.",
+      "**Don't** trade log and metric readability for decorative whitespace."
+    ]
+  }
+}

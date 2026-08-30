@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsArray,
   ArrayMinSize,
@@ -69,27 +70,32 @@ export class CreateRunDto {
 
 export class ListAttemptsQuery {
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(200)
   pageSize?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(100)
   statusCode?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   minLatencyMs?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   maxLatencyMs?: number;

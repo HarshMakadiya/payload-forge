@@ -9,3 +9,5 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 packages/prisma/dev.db*
+.agents/**
+.impeccable/**

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsc -b --watch --preserveWatchOutput & sleep 4 && node --watch --enable-source-maps dist/main.js",
     "start": "node dist/main.js",
     "typecheck": "tsc -b --pretty false"
   },

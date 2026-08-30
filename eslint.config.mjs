@@ -13,6 +13,8 @@ export default tseslint.config(
       '**/.next/**',
       '**/node_modules/**',
       'apps/web/next-env.d.ts',
+      '.agents/**',
+      '**/.agents/**',
     ],
   },
   {
