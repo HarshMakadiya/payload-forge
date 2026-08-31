@@ -1,103 +1,95 @@
 ---
 name: Payload Forge
-description: A dark operational workbench for shaping traffic and reading every signal.
+description: Dark operational workspace for deliberate API load testing.
 colors:
-  blackened-evergreen: '#07100d'
-  deep-workbench: '#0d1915'
-  reinforced-workbench: '#12231d'
-  circuit-line: '#254039'
-  chalk-white: '#edf8f1'
-  muted-sage: '#8da69b'
-  signal-lime: '#c7f56f'
-  live-mint: '#63d6a3'
-  alert-coral: '#ff826f'
-  control-surface: '#172a22'
-  field-surface: '#09130f'
-  action-ink: '#111a11'
-  caution-amber: '#ffcc8a'
+  background: '#0A0E0C'
+  foreground: '#EDEFEA'
+  surface: '#101512'
+  secondary: '#161D19'
+  accent: '#1A221E'
+  border: '#1E2521'
+  border-subtle: '#27332C'
+  primary: '#B8E85C'
+  primary-hover: '#A3D944'
+  muted-foreground: '#8A9289'
+  destructive: '#F0665A'
+  success: '#4DD4C7'
+  warning: '#F2B84B'
+  cancelled: '#6B7268'
 typography:
   display:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: 'clamp(1.9rem, 4.5vw, 3.4rem)'
-    fontWeight: 800
-    lineHeight: '1.05'
-    letterSpacing: '-0.04em'
-  headline:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: '1.45rem'
-    fontWeight: 700
-    lineHeight: '1.15'
-    letterSpacing: '-0.025em'
-  title:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: '1.1rem'
+    fontFamily: 'Geist, Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontSize: '1.5rem'
     fontWeight: 700
     lineHeight: '1.2'
-    letterSpacing: '-0.02em'
+    letterSpacing: '-0.025em'
+  headline:
+    fontFamily: 'Geist, Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontSize: '1.25rem'
+    fontWeight: 700
+    lineHeight: '1.25'
+    letterSpacing: '-0.025em'
+  title:
+    fontFamily: 'Geist, Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontSize: '1.125rem'
+    fontWeight: 600
+    lineHeight: '1.3'
+    letterSpacing: '-0.025em'
   body:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: '1rem'
+    fontFamily: 'Geist, Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontSize: '0.875rem'
     fontWeight: 400
     lineHeight: '1.5'
     letterSpacing: 'normal'
-  action:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: '0.88rem'
-    fontWeight: 700
-    lineHeight: 'normal'
-    letterSpacing: 'normal'
   label:
-    fontFamily: "Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    fontSize: '0.82rem'
-    fontWeight: 500
-    lineHeight: 'normal'
-    letterSpacing: 'normal'
-  mono-label:
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
-    fontSize: '0.68rem'
-    fontWeight: 700
+    fontFamily: 'Geist, Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontSize: '0.75rem'
+    fontWeight: 600
     lineHeight: '1.2'
-    letterSpacing: '0.15em'
-  mono-code:
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
-    fontSize: '0.78rem'
-    fontWeight: 400
-    lineHeight: '1.55'
+    letterSpacing: '0.05em'
+  mono:
+    fontFamily: 'JetBrains Mono, Menlo, monospace'
+    fontSize: '0.75rem'
+    fontWeight: 500
+    lineHeight: '1.5'
     letterSpacing: 'normal'
 rounded:
-  fine: '2px'
-  micro: '4px'
-  control: '10px'
-  accent: '12px'
-  panel: '16px'
-  pill: '999px'
-  circle: '50%'
+  sm: '6px'
+  md: '8px'
+  lg: '12px'
+  pill: '9999px'
 spacing:
-  tight: '0.4rem'
-  compact: '0.7rem'
-  standard: '1rem'
+  compact: '0.5rem'
+  standard: '0.75rem'
   panel: '1.25rem'
-  section: '2rem'
-  hero: '2.5rem'
+  section: '1.5rem'
 components:
   button-primary:
-    backgroundColor: '{colors.signal-lime}'
-    textColor: '{colors.action-ink}'
-    typography: '{typography.action}'
-    rounded: '{rounded.control}'
-    padding: '0.72rem 1rem'
-  button-secondary:
-    backgroundColor: '{colors.control-surface}'
-    textColor: '{colors.chalk-white}'
-    typography: '{typography.action}'
-    rounded: '{rounded.control}'
-    padding: '0.72rem 1rem'
-  input:
-    backgroundColor: '{colors.field-surface}'
-    textColor: '{colors.chalk-white}'
+    backgroundColor: '{colors.primary}'
+    textColor: '{colors.background}'
     typography: '{typography.body}'
-    rounded: '{rounded.control}'
-    padding: '0.72rem 0.8rem'
+    rounded: '{rounded.md}'
+    padding: '0.5rem 1rem'
+    height: '2.25rem'
+  button-secondary:
+    backgroundColor: '{colors.secondary}'
+    textColor: '{colors.foreground}'
+    typography: '{typography.body}'
+    rounded: '{rounded.md}'
+    padding: '0.5rem 1rem'
+    height: '2.25rem'
+  input:
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.foreground}'
+    typography: '{typography.body}'
+    rounded: '{rounded.md}'
+    padding: '0.25rem 0.75rem'
+    height: '2.25rem'
+  card:
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.foreground}'
+    rounded: '{rounded.lg}'
+    padding: '1.5rem'
 ---
 
 # Design System: Payload Forge
@@ -106,154 +98,138 @@ components:
 
 **Creative North Star: "The Signal Forge"**
 
-Payload Forge is a dark operational workbench where traffic is shaped deliberately and every result remains visible. Its atmosphere is precise, instrument-like, safety-conscious, and confident without becoming aggressive. Deep green-black surfaces create concentration while lime and mint behave like active readouts rather than decoration.
+Payload Forge is a dark, compact operations workspace for configuring traffic and reading runtime signal. Green-black surfaces minimize ambient noise; lime carries decisive action, while mint, amber, coral, and gray state colors make outcomes legible.
 
-The system is compact and information-forward, but major work areas retain enough breathing room to support long-running operational tasks. It rejects noisy gamer dashboards, decorative glassmorphism, and generic neon science-fiction styling; the interface should feel like a dependable engineering instrument, not a theatrical simulation of one.
+The interface is deliberately practical: structured panels, dense controls, monospaced machine-adjacent values, and restrained motion. It should feel like a dependable engineering instrument, not a sci-fi dashboard.
 
 **Key Characteristics:**
 
-- Green-black tonal depth with restrained ambient lift.
-- Lime reserved for decisive actions and running-state emphasis.
-- Mint used for live, healthy, and successful signals.
-- Compact controls with confident weight and explicit boundaries.
-- Monospaced uppercase labels that frame operational sections.
+- Deep evergreen canvas with layered dark surfaces.
+- Signal Lime reserved for primary action and live emphasis.
+- Stable borders and tonal contrast establish structure before shadow.
+- Dense controls stay readable through a consistent spacing rhythm.
 
 ## Colors
 
-The palette behaves like an instrument panel: dark evergreen materials carry the workload while rare bright signals communicate action and state.
+Operational color has a fixed job. State always appears with text, counts, or labels.
 
 ### Primary
 
-- **Signal Lime** (`signal-lime`): The decisive action color for primary controls, the brand mark, running states, and the strongest operational emphasis.
+- **Signal Lime** (`#B8E85C`): Primary actions, selected controls, live indicators, and focused values.
 
 ### Secondary
 
-- **Live Mint** (`live-mint`): Communicates healthy connectivity, success, live presence, and supporting emphasis without competing with the primary action.
+- **Live Mint** (`#4DD4C7`): Healthy or successful status.
 
 ### Tertiary
 
-- **Alert Coral** (`alert-coral`): Marks failures, cancellations, destructive actions, and error-state data.
-- **Caution Amber** (`caution-amber`): Reserved for production-target confirmation and other consequential warnings that are not failures.
+- **Alert Coral** (`#F0665A`): Errors, failed work, and destructive actions.
+- **Caution Amber** (`#F2B84B`): Consequential warnings and acknowledgements.
 
 ### Neutral
 
-- **Blackened Evergreen** (`blackened-evergreen`): The page background and deepest canvas.
-- **Deep Workbench** (`deep-workbench`): The default dark surface family.
-- **Reinforced Workbench** (`reinforced-workbench`): The stronger panel layer and upper end of card gradients.
-- **Circuit Line** (`circuit-line`): Borders, dividers, and table rules that reveal structure without dominating it.
-- **Chalk White** (`chalk-white`): Primary text and high-value readouts.
-- **Muted Sage** (`muted-sage`): Labels, supporting copy, secondary metrics, and inactive information.
-- **Control Surface** (`control-surface`): Secondary-button fill.
-- **Field Surface** (`field-surface`): Input, select, and text-area fill.
-- **Action Ink** (`action-ink`): Dark text used on Signal Lime primary actions.
+- **Blackened Canvas** (`#0A0E0C`): Page background.
+- **Workbench Surface** (`#101512`): Cards, fields, and main containers.
+- **Control Surface** (`#161D19`): Secondary controls and inactive state.
+- **Raised Accent** (`#1A221E`): Small local emphasis.
+- **Circuit Border** (`#1E2521`): Boundaries and dividers.
+- **Chalk Text** (`#EDEFEA`): Primary text.
+- **Muted Sage** (`#8A9289`): Supporting labels and secondary information.
 
-### Named Rules
-
-**The Signal Rarity Rule.** Signal Lime is reserved for the one decisive action or live emphasis in a region; its scarcity gives it authority.
-
-**The State Has Words Rule.** Status colors must always appear with an explicit label, count, or state name so meaning never depends on color alone.
+**The Signal Rarity Rule.** Use Signal Lime for one decisive action or active readout in a region; never as general decoration.
 
 ## Typography
 
-**Display Font:** Geist with system sans-serif fallbacks  
-**Body Font:** Geist with system sans-serif fallbacks  
-**Label/Mono Font:** JetBrains Mono with UI monospace fallbacks
+**Display Font:** Geist, Inter, system sans-serif fallback.
 
-**Character:** The sans-serif system is direct and highly legible, with compressed tracking on large headings to create authority. Monospaced uppercase labels introduce the instrument-panel voice and distinguish structural metadata from task content.
+**Body Font:** Geist, Inter, system sans-serif fallback.
+
+**Label/Mono Font:** JetBrains Mono, Menlo, monospace fallback for paths, methods, payloads, and metrics.
+
+**Character:** Geist carries direct, compact UI copy. JetBrains Mono distinguishes machine values without turning ordinary prose into a terminal.
 
 ### Hierarchy
 
-- **Display** (700, fluid `2rem–4rem`, normal line height): Used only for the dashboard's primary proposition; tightly tracked for a compact, confident silhouette.
-- **Headline** (700, `1.5rem`, normal line height): Names major work panels and anchors each operational region.
-- **Title** (700, `1.17rem`, normal line height): Labels subsections and paired configuration groups.
-- **Body** (400, `1rem`, normal line height): Carries controls, values, and explanatory copy.
-- **Action** (700, `1rem`, normal line height): Gives buttons and operational controls confident tactile weight.
-- **Label** (400, `0.82rem`): Carries field labels, system state, and supporting operational information.
-- **Mono Label** (700, `0.72rem`, `0.15em`, uppercase): Frames panel categories such as Workspace, Execution, and Request Attempts.
-- **Mono Code** (400, `0.78rem`, `1.55` line height): Displays payloads and captured request or response bodies.
+- **Display** (700, `1.5rem`, `1.2`): Page proposition and major operational heading.
+- **Headline** (700, `1.25rem`, `1.25`): Panel-level headings.
+- **Title** (600, `1.125rem`, `1.3`): Subsections and card titles.
+- **Body** (400, `0.875rem`, `1.5`): Controls, descriptions, and messages.
+- **Label** (600, `0.75rem`, `0.05em` tracking): Compact metadata and structural labels.
+- **Mono** (500, `0.75rem`, `1.5`): Methods, paths, IDs, payloads, and measured data.
 
-### Named Rules
-
-**The Instrument Label Rule.** Monospaced uppercase type is reserved for section framing and machine-adjacent information, never for paragraphs or primary task labels.
+**The Instrument Label Rule.** Use mono only when content is code, data, or a machine-adjacent value.
 
 ## Layout
 
-The dashboard uses a centered container capped at `1380px` with a twelve-column desktop grid and a consistent `1rem` gutter. The project panel occupies four columns, target setup occupies eight, and execution and payload work span the full grid. Configuration groups use paired columns while dense run controls expand across a purpose-built multi-column row.
+Dashboard is centered at maximum width `1440px`, with `1rem` side padding on small screens, `1.5rem` on larger screens, and `2rem` at large widths. Major regions stack with `1.5rem` gaps. Forms begin as one column, become two columns at `md`, and use purpose-built multi-column grids only when configuration density needs them.
 
-Spacing follows a compact operational rhythm: controls and related fields use approximately `0.4rem–0.7rem`, panel internals use `1rem–1.25rem`, and major page regions use `2rem–2.5rem`. At `980px`, primary panels span the full grid, run controls become two columns, run rows stack, and log filters become one column. At `640px`, the hero, paired forms, run controls, and inline forms collapse into single-column flows.
-
-**The Work Before Chrome Rule.** Wide space belongs to forms, metrics, logs, and payloads; branding and system framing remain compact.
+Major cards use `1.5rem` internal padding. Nested control groups use `1rem–1.25rem`; controls inside a group use `0.5rem–0.75rem` gaps. Long logs and payloads scroll rather than compress contents.
 
 ## Elevation & Depth
 
-The system is layered with ambient lift. Tonal differences and circuit-line borders establish most hierarchy; a broad, low-opacity shadow lifts only major work panels. The page background's restrained mint radial glow establishes atmosphere without turning individual components into glowing objects.
+Tonal layering and `1px` Circuit Border edges establish most depth. Cards and controls use a small neutral shadow; dialogs and tooltips use a stronger soft shadow. Shadows never substitute for a missing boundary.
 
 ### Shadow Vocabulary
 
-- **Panel Ambient** (`0 18px 70px rgba(0, 0, 0, 0.18)`): A broad, soft shadow used on major cards only.
-- **Live Pulse** (`0 0 0 5px rgba(99, 214, 163, 0.12)`): A compact halo limited to the live-status indicator.
+- **Control lift** (`0 1px 2px rgba(0, 0, 0, 0.05)`): Buttons, inputs, and cards.
+- **Overlay lift** (`0 10px 25px -5px rgba(0, 0, 0, 0.5)`): Tooltips and focused overlays.
 
-### Named Rules
-
-**The Layer Before Shadow Rule.** Use surface tone and borders to establish structure first; shadows are reserved for major work regions or an explicit live-state signal.
+**The Layer Before Shadow Rule.** Establish hierarchy with tone and border first; reserve stronger shadow for overlays.
 
 ## Shapes
 
-The form language uses gently curved controls (`10px`), slightly rounder accent and feedback surfaces (`12px`), and clearly defined major panels (`16px`). Pills (`999px`) are limited to compact status and limit chips, while circles (`50%`) belong to point-status indicators. Every surface keeps a visible edge; glass-like, borderless floating shapes do not belong in this system.
+Controls use `6px–8px` corners. Cards and dialogs use `12px`. Pills belong to status indicators, scrollbars, and progress elements only. Every persistent surface keeps a visible border.
 
 ## Components
 
-Components feel precise and tactile: compact operational dimensions, confident type weight, clear boundaries, and immediate state feedback.
-
 ### Buttons
 
-- **Shape:** Gently curved (`10px`) with a visible `1px` boundary and compact `0.72rem 1rem` padding.
-- **Primary:** Signal Lime fill with dark evergreen text; reserved for the decisive action in a panel.
-- **Secondary:** Dark control surface with Chalk White text and a muted green border.
-- **Hover / Focus:** Hover promotes the border to Signal Lime. Keyboard focus must remain visibly distinct and at least as clear as hover.
-- **Danger:** Retains the dark surface while shifting border and text toward Alert Coral; destructive meaning remains explicit in the label.
-- **Disabled:** Reduces opacity to `0.45` and removes the active cursor while preserving the control's silhouette.
-
-### Chips
-
-- **Style:** Fully rounded, compact, dark-tonal surfaces with small bold labels.
-- **State:** Status text uses Signal Lime, Live Mint, or Alert Coral according to meaning; neutral limit chips use Circuit Line and Muted Sage.
+- **Shape:** `8px` corners; default height `36px`, compact height `32px`.
+- **Primary:** Signal Lime with Blackened Canvas text; hover darkens to `#A3D944`.
+- **Secondary:** Control Surface with Chalk Text and Circuit Border.
+- **Outline / Ghost:** Dark or transparent base with secondary surface on hover.
+- **Focus / Disabled:** Lime focus ring; disabled state keeps shape but reduces opacity to `0.5`.
 
 ### Cards / Containers
 
-- **Corner Style:** Clearly rounded major panels (`16px`).
-- **Background:** A restrained diagonal gradient from Reinforced Workbench toward the deeper canvas.
-- **Shadow Strategy:** Panel Ambient only; nested regions return to lines and tonal separation.
-- **Border:** A `1px` Circuit Line boundary.
-- **Internal Padding:** Standard panel padding (`1.25rem`).
+- **Corner Style:** `12px` major cards; `8px` nested groups.
+- **Background:** Workbench Surface.
+- **Border:** `1px` Circuit Border.
+- **Internal Padding:** `1.5rem` for cards, `1rem–1.25rem` for nested groups.
 
 ### Inputs / Fields
 
-- **Style:** Field Surface fill, Circuit Line border, Chalk White value text, and gently curved corners (`10px`).
-- **Labels:** Muted Sage at the compact label scale, placed directly above the control.
-- **Focus:** Must promote the field boundary or add a visible outline without relying on glow alone.
-- **Disabled:** Preserve legibility while clearly reducing affordance.
+- **Style:** Workbench Surface fill, Circuit Border, `8px` corners, `36px` height.
+- **Focus:** Signal Lime `1px` ring and border.
+- **Error / Disabled:** Coral-tinted error blocks; disabled fields retain structure at reduced opacity.
+
+### Status and Feedback
+
+- **Success:** Live Mint icon and tint with explicit success copy.
+- **Warning:** Caution Amber icon, label, and acknowledgement.
+- **Error:** Alert Coral icon and tint; messages name problem and recovery.
+- **Live indicator:** `8px` Signal Lime dot with restrained `1.5s` ping animation.
 
 ### Payload and Log Surfaces
 
-- **Payload preview:** Uses the deepest surface, mint-tinted code text, monospaced typography, `12px` corners, and scroll containment.
-- **Log table:** Uses compact text, left-aligned values, Circuit Line row boundaries, and horizontal overflow rather than compressed unreadable columns.
-- **Errors:** Use a dark coral-tinted surface with explicit error copy and a defined boundary.
+- **Style:** JetBrains Mono at compact sizes on Workbench Surface, contained by Circuit Border.
+- **Overflow:** Vertical or horizontal scrolling preserves source readability.
+- **Methods:** Monospace, bold, and Signal Lime when placed next to endpoint path.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** reserve Signal Lime for decisive actions and active operational emphasis.
-- **Do** pair every status color with clear text, counts, or state names.
-- **Do** keep dense information aligned to stable grids and preserve horizontal scrolling for wide logs.
-- **Do** establish hierarchy with tonal layers and borders before adding shadow.
-- **Do** use monospaced uppercase labels to frame machine-adjacent sections.
+- **Do** reserve Signal Lime for decisive actions, selection, and active state.
+- **Do** name status in text as well as color.
+- **Do** use mono for payloads, methods, paths, IDs, and measured operational values.
+- **Do** preserve `1px` borders around long-lived panels and controls.
+- **Do** keep high-density forms in stable, responsive grids.
 
 ### Don't:
 
-- **Don't** turn the interface into a noisy gamer dashboard or generic neon science-fiction scene.
-- **Don't** introduce decorative glassmorphism, borderless floating cards, or glow on every component.
-- **Don't** use lime, mint, coral, or amber as interchangeable decoration; each has a defined operational role.
-- **Don't** communicate success, failure, production risk, or run state through color alone.
-- **Don't** trade log and metric readability for decorative whitespace.
+- **Don't** use lime, mint, coral, or amber as interchangeable decoration.
+- **Don't** use monospace for ordinary prose.
+- **Don't** hide errors, warnings, or live state in color alone.
+- **Don't** replace readable log overflow with tiny, compressed columns.
+- **Don't** add glass effects, glowing cards, or decorative gradients.

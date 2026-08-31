@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { validateApiEnvironment } from './config.js';
 
 const candidateEnvFiles = [
@@ -22,9 +23,10 @@ for (const envFile of candidateEnvFiles) {
 validateApiEnvironment();
 const { AppModule } = await import('./app.module.js');
 
-const app = await NestFactory.create(AppModule, {
+const app = await NestFactory.create<NestExpressApplication>(AppModule, {
   logger: new ConsoleLogger({ json: true }),
 });
+app.useBodyParser('json', { limit: '3mb' });
 app.setGlobalPrefix('v1');
 app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000' });
 app.useGlobalPipes(

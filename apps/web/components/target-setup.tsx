@@ -22,6 +22,7 @@ import {
   CardDescription,
 } from './ui/card';
 import { Input } from './ui/input';
+import { OpenApiImport } from './openapi-import';
 
 interface TargetSetupProps {
   readonly projectId: string;
@@ -446,6 +447,8 @@ export function TargetSetup({
             </Button>
           </div>
         </div>
+
+        <OpenApiImport projectId={projectId} onChanged={onChanged} />
 
         <section
           aria-labelledby="saved-targets-heading"

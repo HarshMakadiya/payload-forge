@@ -1,12 +1,14 @@
 import { ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { EndpointsController } from '../endpoints/endpoints.controller.js';
+import { OpenApiImportService } from '../endpoints/openapi-import.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { EnvironmentsController } from './environments.controller.js';
 import { ProjectsController } from './projects.controller.js';
 import type { SecretsService } from './secrets.service.js';
 
 describe('configuration CRUD controllers', () => {
+  const openApiImport = new OpenApiImportService();
   it('updates a Project without overwriting omitted values', async () => {
     const project = {
       findFirstOrThrow: vi.fn().mockResolvedValue({ id: 'project-1' }),
@@ -138,9 +140,10 @@ describe('configuration CRUD controllers', () => {
         .fn()
         .mockResolvedValue({ id: 'endpoint-1', path: '/v2/orders' }),
     };
-    const controller = new EndpointsController({
-      endpoint,
-    } as unknown as PrismaService);
+    const controller = new EndpointsController(
+      { endpoint } as unknown as PrismaService,
+      openApiImport
+    );
 
     await expect(
       controller.update('endpoint-1', {
@@ -162,10 +165,10 @@ describe('configuration CRUD controllers', () => {
       delete: vi.fn().mockResolvedValue({ id: 'endpoint-1' }),
     };
     const testRun = { findFirst: vi.fn().mockResolvedValue(null) };
-    const controller = new EndpointsController({
-      endpoint,
-      testRun,
-    } as unknown as PrismaService);
+    const controller = new EndpointsController(
+      { endpoint, testRun } as unknown as PrismaService,
+      openApiImport
+    );
 
     await expect(controller.remove('endpoint-1')).resolves.toEqual({
       data: { id: 'endpoint-1' },
@@ -178,12 +181,98 @@ describe('configuration CRUD controllers', () => {
 
   it('blocks Endpoint deletion when a Test Run references it', async () => {
     const testRun = { findFirst: vi.fn().mockResolvedValue({ id: 'run-1' }) };
-    const controller = new EndpointsController({
-      testRun,
-    } as unknown as PrismaService);
+    const controller = new EndpointsController(
+      { testRun } as unknown as PrismaService,
+      openApiImport
+    );
 
     await expect(controller.remove('endpoint-1')).rejects.toBeInstanceOf(
       ConflictException
     );
+  });
+
+  it('previews OpenAPI operations and marks existing method/path pairs', async () => {
+    const endpoint = {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          { name: 'List users', method: 'GET', path: '/users' },
+        ]),
+    };
+    const project = {
+      findFirstOrThrow: vi.fn().mockResolvedValue({ id: 'p' }),
+    };
+    const controller = new EndpointsController(
+      { endpoint, project } as unknown as PrismaService,
+      openApiImport
+    );
+    const spec = JSON.stringify({
+      openapi: '3.0.3',
+      info: { title: 'Users' },
+      paths: {
+        '/users': {
+          get: { operationId: 'listUsers', responses: {} },
+          post: { operationId: 'createUser', responses: {} },
+        },
+      },
+    });
+
+    const result = await controller.previewOpenApi('p', { spec });
+
+    expect(result.data).toMatchObject({
+      title: 'Users',
+      operations: [
+        { operationKey: 'GET /users', duplicate: true },
+        { operationKey: 'POST /users', duplicate: false },
+      ],
+    });
+  });
+
+  it('bulk imports selected OpenAPI operations and skips duplicates', async () => {
+    const endpoint = {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          { name: 'List users', method: 'GET', path: '/users' },
+        ]),
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
+    };
+    const project = {
+      findFirstOrThrow: vi.fn().mockResolvedValue({ id: 'p' }),
+    };
+    const controller = new EndpointsController(
+      { endpoint, project } as unknown as PrismaService,
+      openApiImport
+    );
+    const spec = JSON.stringify({
+      openapi: '3.0.3',
+      info: { title: 'Users' },
+      paths: {
+        '/users': {
+          get: { operationId: 'listUsers', responses: {} },
+          post: { operationId: 'createUser', responses: {} },
+        },
+      },
+    });
+
+    await expect(
+      controller.importOpenApi('p', {
+        spec,
+        operationKeys: ['GET /users', 'POST /users'],
+      })
+    ).resolves.toEqual({
+      data: { importedCount: 1, skippedCount: 1 },
+      error: null,
+    });
+    expect(endpoint.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          projectId: 'p',
+          name: 'createUser',
+          method: 'POST',
+          path: '/users',
+        }),
+      ],
+    });
   });
 });

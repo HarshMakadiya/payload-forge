@@ -16,6 +16,7 @@
 - [x] Implement encrypted secret storage and redaction configuration.
 - [x] Build CRUD APIs for projects, environments, and endpoints.
 - [x] Add dashboard edit and delete controls for projects, environments, and endpoints.
+- [x] Add OpenAPI 3.x paste/upload preview and bulk Endpoint import.
 - [x] Implement endpoint configuration validation and production/target safety guardrails.
 
 ## Phase 2 — Load Execution

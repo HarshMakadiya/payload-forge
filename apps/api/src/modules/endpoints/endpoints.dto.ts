@@ -1,4 +1,8 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsIn,
   IsInt,
   IsObject,
@@ -6,8 +10,11 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
+
+const MAX_OPENAPI_SOURCE_LENGTH = 2_000_000;
 
 export class CreateEndpointDto {
   @IsUUID()
@@ -69,4 +76,19 @@ export class UpdateEndpointDto {
   @Min(100)
   @Max(120_000)
   timeoutMs?: number;
+}
+
+export class PreviewOpenApiDto {
+  @IsString()
+  @MaxLength(MAX_OPENAPI_SOURCE_LENGTH)
+  spec!: string;
+}
+
+export class ImportOpenApiDto extends PreviewOpenApiDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ArrayUnique()
+  @IsString({ each: true })
+  operationKeys!: string[];
 }
