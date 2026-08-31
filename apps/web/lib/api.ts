@@ -20,9 +20,16 @@ export interface Endpoint {
 
 export interface TestRun {
   readonly id: string;
+  readonly environmentId: string;
+  readonly endpointId: string;
   readonly status: string;
   readonly totalLogicalRequests: number;
   readonly requestsPerMinute: number;
+  readonly maxConcurrency: number;
+  readonly snapshot: {
+    readonly throttlePercent?: number;
+    readonly rateStrategy?: 'constant' | 'burst';
+  };
   readonly succeeded: number;
   readonly failed: number;
   readonly cancelled: number;

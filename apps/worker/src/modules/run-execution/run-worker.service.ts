@@ -5,7 +5,11 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient, type Prisma } from '@payload-forge/prisma';
-import type { RunJobData, RunSummary } from '@payload-forge/shared';
+import type {
+  RunControlCommand,
+  RunJobData,
+  RunSummary,
+} from '@payload-forge/shared';
 import { type Job, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { randomUUID } from 'node:crypto';
@@ -108,10 +112,13 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     const handle = this.activeRuns.get(runId);
     if (handle === undefined) return;
     try {
-      const parsed = JSON.parse(message) as { action?: string };
+      const parsed = JSON.parse(message) as RunControlCommand;
       if (parsed.action === 'pause') handle.pause();
       if (parsed.action === 'resume') handle.resume();
       if (parsed.action === 'cancel') handle.cancel();
+      if (parsed.action === 'throttle') {
+        handle.setThrottlePercent(parsed.throttlePercent);
+      }
     } catch (error: unknown) {
       this.logger.error({
         requestId: null,
@@ -251,6 +258,23 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
           },
         });
         await this.publishRunProgress({ runId, ...progress });
+      },
+      onCircuitBreaker: async (event) => {
+        await this.prisma.testRun.update({
+          where: { id: runId },
+          data: { status: 'PAUSED' },
+        });
+        await this.publishRunProgress({
+          runId,
+          status: 'PAUSED',
+          circuitBreaker: event,
+        });
+        this.logger.warn({
+          requestId: null,
+          runId,
+          event: 'run-circuit-breaker-tripped',
+          ...event,
+        });
       },
     };
   }

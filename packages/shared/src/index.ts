@@ -19,8 +19,15 @@ export interface TestRunSnapshot {
   readonly endpoint: EndpointSnapshot;
   readonly totalLogicalRequests: number;
   readonly requestsPerMinute: number;
+  readonly durationMs?: number;
   readonly rateStrategy: 'constant' | 'burst';
+  readonly throttlePercent?: number;
   readonly maxConcurrency: number;
+  readonly circuitBreaker?: {
+    readonly minCompletedRequests: number;
+    readonly errorRateThreshold: number;
+    readonly action: 'pause';
+  };
   readonly retry: {
     readonly maxAttempts: number;
     readonly backoffMs: number;
@@ -35,6 +42,10 @@ export interface TestRunSnapshot {
   readonly productionConfirmed: boolean;
   readonly randomSeed: number;
 }
+
+export type RunControlCommand =
+  | { readonly action: 'pause' | 'resume' | 'cancel' }
+  | { readonly action: 'throttle'; readonly throttlePercent: number };
 
 export interface RunJobData {
   readonly snapshot: TestRunSnapshot;

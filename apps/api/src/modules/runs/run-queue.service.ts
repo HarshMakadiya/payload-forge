@@ -1,5 +1,9 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import type { RunJobData, TestRunSnapshot } from '@payload-forge/shared';
+import type {
+  RunControlCommand,
+  RunJobData,
+  TestRunSnapshot,
+} from '@payload-forge/shared';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 
@@ -33,13 +37,10 @@ export class RunQueueService implements OnModuleDestroy {
     );
   }
 
-  async control(
-    runId: string,
-    action: 'pause' | 'resume' | 'cancel'
-  ): Promise<void> {
+  async control(runId: string, command: RunControlCommand): Promise<void> {
     await this.controlPublisher.publish(
       `run-control:${runId}`,
-      JSON.stringify({ action })
+      JSON.stringify(command)
     );
   }
 

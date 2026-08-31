@@ -322,7 +322,7 @@ export function RunPanel({
               className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="constant">Constant (Even pacing)</option>
-              <option value="burst">Burst (Wave dispatch)</option>
+              <option value="burst">Burst (Up to 10 timed waves)</option>
             </select>
           </div>
 
@@ -455,7 +455,10 @@ export function RunPanel({
                   {total.toLocaleString()} logical requests over{' '}
                   {durationMinutes}{' '}
                   {durationMinutes === 1 ? 'minute' : 'minutes'} ·{' '}
-                  {rateStrategy} pacing · {maxConcurrency} workers
+                  {rateStrategy === 'burst'
+                    ? `${Math.min(10, total)} timed waves`
+                    : 'constant pacing'}{' '}
+                  · {maxConcurrency} workers
                 </dd>
               </div>
               <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">

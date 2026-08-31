@@ -16,7 +16,7 @@ import {
   CreateRunDto,
   ListAttemptsQuery,
   PurgeProjectRunDataDto,
-  UpdateRunStatusDto,
+  UpdateRunDto,
 } from './runs.dto.js';
 import { RunsService } from './runs.service.js';
 
@@ -69,7 +69,11 @@ export class RunsController {
     const where: Prisma.RequestAttemptWhereInput = {
       testRunId: runId,
       ...(query.statusCode === undefined
-        ? {}
+        ? query.statusGroup === '2xx'
+          ? { statusCode: { gte: 200, lt: 300 } }
+          : query.statusGroup === 'errors'
+            ? { statusCode: { gte: 400, lt: 600 } }
+            : {}
         : { statusCode: query.statusCode }),
       ...(query.minLatencyMs === undefined && query.maxLatencyMs === undefined
         ? {}
@@ -89,7 +93,9 @@ export class RunsController {
             searchText: { contains: query.keyword.trim(), mode: 'insensitive' },
           }),
       ...(query.errorType === undefined || query.errorType === ''
-        ? {}
+        ? query.statusGroup === 'timeouts'
+          ? { errorType: 'timeout' }
+          : {}
         : { errorType: query.errorType }),
     };
     const [items, total] = await Promise.all([
@@ -161,8 +167,23 @@ export class RunsController {
   @Patch('runs/:runId')
   async control(
     @Param('runId') runId: string,
-    @Body() input: UpdateRunStatusDto
+    @Body() input: UpdateRunDto
   ): Promise<{ data: unknown; error: null }> {
+    if (
+      (input.status === undefined) ===
+      (input.throttlePercent === undefined)
+    ) {
+      throw new BadRequestException({
+        code: 'RUN_UPDATE_INVALID',
+        message: 'Provide exactly one of status or throttlePercent',
+      });
+    }
+    if (input.throttlePercent !== undefined) {
+      return {
+        data: await this.runs.throttle(runId, input.throttlePercent),
+        error: null,
+      };
+    }
     const action =
       input.status === 'PAUSED'
         ? 'pause'

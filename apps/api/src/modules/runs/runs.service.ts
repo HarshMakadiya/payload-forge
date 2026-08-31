@@ -112,8 +112,15 @@ export class RunsService {
       },
       totalLogicalRequests: input.totalLogicalRequests,
       requestsPerMinute,
+      durationMs: input.durationMinutes * 60_000,
       rateStrategy: input.rateStrategy,
+      throttlePercent: 100,
       maxConcurrency: input.maxConcurrency,
+      circuitBreaker: {
+        minCompletedRequests: 20,
+        errorRateThreshold: 0.2,
+        action: 'pause',
+      },
       retry: {
         maxAttempts: input.maxAttempts ?? 1,
         backoffMs: input.retryBackoffMs ?? 0,
@@ -175,7 +182,7 @@ export class RunsService {
         message: `Cannot ${action} a ${run.status.toLowerCase()} run`,
       });
     }
-    await this.queue.control(runId, action);
+    await this.queue.control(runId, { action });
     const status =
       action === 'pause'
         ? 'PAUSED'
@@ -185,6 +192,33 @@ export class RunsService {
     return this.prisma.testRun.update({
       where: { id: runId },
       data: { status },
+    });
+  }
+
+  async throttle(runId: string, throttlePercent: number): Promise<unknown> {
+    const run = await this.prisma.testRun.findUnique({ where: { id: runId } });
+    if (run === null) {
+      throw new NotFoundException({
+        code: 'RUN_NOT_FOUND',
+        message: 'Test Run not found',
+      });
+    }
+    if (run.status !== 'RUNNING' && run.status !== 'PAUSED') {
+      throw new BadRequestException({
+        code: 'RUN_THROTTLE_INVALID',
+        message: `Cannot throttle a ${run.status.toLowerCase()} run`,
+      });
+    }
+    const snapshot = run.snapshot as Prisma.JsonObject;
+    await this.queue.control(runId, { action: 'throttle', throttlePercent });
+    return this.prisma.testRun.update({
+      where: { id: runId },
+      data: {
+        snapshot: {
+          ...snapshot,
+          throttlePercent,
+        },
+      },
     });
   }
 

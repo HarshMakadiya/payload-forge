@@ -42,10 +42,37 @@ describe('RunsService control', () => {
     );
 
     await service.control('run-1', 'pause');
-    expect(control).toHaveBeenCalledWith('run-1', 'pause');
+    expect(control).toHaveBeenCalledWith('run-1', { action: 'pause' });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'run-1' },
       data: { status: 'PAUSED' },
+    });
+  });
+
+  it('publishes and persists a worker throttle command', async () => {
+    const update = vi.fn().mockResolvedValue({ status: 'RUNNING' });
+    const control = vi.fn().mockResolvedValue(undefined);
+    const service = new RunsService(
+      {
+        testRun: {
+          findUnique: vi.fn().mockResolvedValue({
+            status: 'RUNNING',
+            snapshot: { id: 'run-1', throttlePercent: 100 },
+          }),
+          update,
+        },
+      } as never,
+      { control } as never
+    );
+
+    await service.throttle('run-1', 50);
+    expect(control).toHaveBeenCalledWith('run-1', {
+      action: 'throttle',
+      throttlePercent: 50,
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: { snapshot: { id: 'run-1', throttlePercent: 50 } },
     });
   });
 });
@@ -134,6 +161,13 @@ describe('RunsService create', () => {
     expect(snapshot.endpoint.headers).toEqual({ 'x-tenant': 'demo' });
     expect(snapshot.targetAuthorizationAcknowledged).toBe(true);
     expect(snapshot.productionConfirmed).toBe(false);
+    expect(snapshot.durationMs).toBe(60_000);
+    expect(snapshot.throttlePercent).toBe(100);
+    expect(snapshot.circuitBreaker).toEqual({
+      minCompletedRequests: 20,
+      errorRateThreshold: 0.2,
+      action: 'pause',
+    });
     expect(encryptedSecrets).toEqual({ token: 'encrypted' });
   });
 });

@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { io } from 'socket.io-client';
 import {
@@ -21,7 +28,6 @@ import {
   Play,
   Sliders,
   StopCircle,
-  X,
 } from 'lucide-react';
 import {
   apiRequest,
@@ -63,6 +69,55 @@ interface LiveExecutionCockpitProps {
   readonly onRunUpdated?: (() => Promise<void>) | undefined;
 }
 
+const percentileHelp = {
+  p50: {
+    title: 'p50 — median latency',
+    description: '50% of requests completed in this time or faster.',
+  },
+  p90: {
+    title: 'p90 latency',
+    description: '90% of requests completed in this time or faster.',
+  },
+  p95: {
+    title: 'p95 latency',
+    description: '95% of requests completed in this time or faster.',
+  },
+  p99: {
+    title: 'p99 tail latency',
+    description: '99% of requests completed in this time or faster.',
+  },
+} as const;
+
+function PercentileHelp({
+  percentile,
+  align = 'start',
+  children,
+}: {
+  readonly percentile: keyof typeof percentileHelp;
+  readonly align?: 'start' | 'end';
+  readonly children: ReactNode;
+}): React.ReactElement {
+  const help = percentileHelp[percentile];
+  return (
+    <span
+      tabIndex={0}
+      aria-label={`${help.title}. ${help.description}`}
+      className="group relative inline-flex cursor-help rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+    >
+      <span aria-hidden="true">{children}</span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none invisible absolute top-full z-20 mt-2 w-64 rounded-md border border-border bg-card p-3 text-left font-sans text-xs leading-5 text-muted-foreground opacity-0 shadow-lg transition-[opacity,visibility] duration-150 group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100 ${
+          align === 'end' ? 'right-0' : 'left-0'
+        }`}
+      >
+        <strong className="block text-foreground">{help.title}</strong>
+        {help.description}
+      </span>
+    </span>
+  );
+}
+
 export function LiveExecutionCockpit({
   runId,
   environments,
@@ -82,6 +137,7 @@ export function LiveExecutionCockpit({
   const [history, setHistory] = useState<readonly TelemetryPoint[]>([]);
   const [throttlePercent, setThrottlePercent] = useState<number>(100);
   const [isThrottling, setIsThrottling] = useState(false);
+  const [throttleError, setThrottleError] = useState('');
   const [circuitBreakerTripped, setCircuitBreakerTripped] = useState(false);
   const [selectedErrorFilter, setSelectedErrorFilter] = useState<string | null>(
     null
@@ -91,11 +147,15 @@ export function LiveExecutionCockpit({
 
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(Date.now());
+  const throttleRequestRef = useRef(false);
 
   const fetchRun = useCallback(async (): Promise<void> => {
     try {
       const data = await apiRequest<TestRun>(`/runs/${runId}`);
       setRun(data);
+      if (!throttleRequestRef.current) {
+        setThrottlePercent(data.snapshot.throttlePercent ?? 100);
+      }
     } catch {
       // Handled gracefully
     }
@@ -233,10 +293,10 @@ export function LiveExecutionCockpit({
       return next.length > 40 ? next.slice(next.length - 40) : next;
     });
 
-    const errorCount = run.failed + run.timedOut;
-    if (run.attemptCount >= 20) {
-      const errorRate = errorCount / run.attemptCount;
-      if (errorRate >= 0.2 && run.status === 'RUNNING') {
+    const completedRequests = run.succeeded + run.failed;
+    if (completedRequests >= 20) {
+      const errorRate = run.failed / completedRequests;
+      if (errorRate >= 0.2) {
         setCircuitBreakerTripped(true);
       } else if (errorRate < 0.15) {
         setCircuitBreakerTripped(false);
@@ -298,10 +358,31 @@ export function LiveExecutionCockpit({
     }
   };
 
-  const applyThrottle = (val: number): void => {
+  const applyThrottle = async (val: number): Promise<void> => {
     setThrottlePercent(val);
     setIsThrottling(true);
-    setTimeout(() => setIsThrottling(false), 800);
+    setThrottleError('');
+    throttleRequestRef.current = true;
+    try {
+      const updatedRun = await apiRequest<TestRun>(`/runs/${runId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ throttlePercent: val }),
+      });
+      setRun(updatedRun);
+      setThrottlePercent(updatedRun.snapshot.throttlePercent ?? val);
+      if (onRunUpdated) await onRunUpdated();
+    } catch (caught: unknown) {
+      setThrottleError(
+        caught instanceof Error
+          ? caught.message
+          : 'Worker throttle update failed'
+      );
+      throttleRequestRef.current = false;
+      await fetchRun();
+    } finally {
+      throttleRequestRef.current = false;
+      setIsThrottling(false);
+    }
   };
 
   const errorBreakdown = useMemo(() => {
@@ -354,8 +435,13 @@ export function LiveExecutionCockpit({
   const timeoutPercent =
     totalAttempts > 0 ? (timedOutCount / totalAttempts) * 100 : 0;
 
-  const matchedEnv = environments[0];
-  const matchedEndpoint = endpoints[0];
+  const matchedEnv = environments.find(
+    (environment) => environment.id === run?.environmentId
+  );
+  const matchedEndpoint = endpoints.find(
+    (endpoint) => endpoint.id === run?.endpointId
+  );
+  const maxConcurrency = Math.max(1, run?.maxConcurrency ?? 1);
 
   const formatSec = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -450,11 +536,11 @@ export function LiveExecutionCockpit({
               <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div>
                 <strong className="text-sm font-bold text-foreground">
-                  Circuit Breaker Triggered: Error rate elevated (&gt;20%)
+                  Circuit breaker auto-paused this run
                 </strong>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Target endpoint is reporting failure bursts. You can throttle
-                  traffic, auto-pause, or cancel.
+                  At least 20 requests completed with a 20% or higher failure
+                  rate. Review failures, reduce traffic, then resume or cancel.
                 </p>
               </div>
             </div>
@@ -462,27 +548,11 @@ export function LiveExecutionCockpit({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => applyThrottle(50)}
+                onClick={() => void applyThrottle(50)}
+                disabled={isThrottling}
                 className="text-xs"
               >
                 Throttle to 50%
-              </Button>
-              {run?.status === 'RUNNING' && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => void controlRun('pause')}
-                  className="text-xs"
-                >
-                  Auto-Pause Run
-                </Button>
-              )}
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => setCircuitBreakerTripped(false)}
-              >
-                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -504,7 +574,7 @@ export function LiveExecutionCockpit({
                     ((run?.requestsPerMinute ?? 600) / 60) *
                       (throttlePercent / 100)
                   )}{' '}
-                  req/s)
+                  avg req/s)
                 </span>
               </span>
             </div>
@@ -512,28 +582,42 @@ export function LiveExecutionCockpit({
             <div className="space-y-2">
               <Slider
                 min={10}
-                max={200}
+                max={100}
                 step={10}
                 value={[throttlePercent]}
-                onValueChange={(vals) => applyThrottle(vals[0] ?? 100)}
-                disabled={run?.status !== 'RUNNING' && run?.status !== 'PAUSED'}
+                onValueChange={(vals) =>
+                  setThrottlePercent(vals[0] ?? throttlePercent)
+                }
+                onValueCommit={(vals) =>
+                  void applyThrottle(vals[0] ?? throttlePercent)
+                }
+                disabled={
+                  isThrottling ||
+                  (run?.status !== 'RUNNING' && run?.status !== 'PAUSED')
+                }
               />
               <div className="flex items-center gap-2 pt-1">
-                {[50, 100, 150, 200].map((preset) => (
+                {[25, 50, 75, 100].map((preset) => (
                   <button
                     key={preset}
-                    onClick={() => applyThrottle(preset)}
+                    onClick={() => void applyThrottle(preset)}
+                    disabled={isThrottling}
                     className="px-2 py-0.5 text-[11px] font-mono font-medium rounded bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors cursor-pointer"
                   >
-                    {preset === 200 ? '2x Max' : `${preset}%`}
+                    {preset}%
                   </button>
                 ))}
                 {isThrottling && (
                   <span className="text-[11px] text-primary animate-pulse ml-2 font-medium">
-                    Applied throttle update
+                    Updating worker rate…
                   </span>
                 )}
               </div>
+              {throttleError !== '' && (
+                <p className="text-xs text-destructive" role="alert">
+                  {throttleError}. Try again or pause the run.
+                </p>
+              )}
             </div>
           </div>
 
@@ -634,22 +718,30 @@ export function LiveExecutionCockpit({
                 </h3>
               </div>
               <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="flex items-center gap-1 text-success font-semibold">
-                  <span className="h-2 w-2 rounded-full bg-success inline-block" />{' '}
-                  p50
-                </span>
-                <span className="flex items-center gap-1 text-[#82DBC5]">
-                  <span className="h-2 w-2 rounded-full bg-[#82DBC5] inline-block" />{' '}
-                  p90
-                </span>
-                <span className="flex items-center gap-1 text-warning">
-                  <span className="h-2 w-2 rounded-full bg-warning inline-block" />{' '}
-                  p95
-                </span>
-                <span className="flex items-center gap-1 text-destructive">
-                  <span className="h-2 w-2 rounded-full bg-destructive inline-block" />{' '}
-                  p99
-                </span>
+                <PercentileHelp percentile="p50">
+                  <span className="flex items-center gap-1 text-success font-semibold">
+                    <span className="h-2 w-2 rounded-full bg-success inline-block" />{' '}
+                    p50
+                  </span>
+                </PercentileHelp>
+                <PercentileHelp percentile="p90">
+                  <span className="flex items-center gap-1 text-[#82DBC5]">
+                    <span className="h-2 w-2 rounded-full bg-[#82DBC5] inline-block" />{' '}
+                    p90
+                  </span>
+                </PercentileHelp>
+                <PercentileHelp percentile="p95">
+                  <span className="flex items-center gap-1 text-warning">
+                    <span className="h-2 w-2 rounded-full bg-warning inline-block" />{' '}
+                    p95
+                  </span>
+                </PercentileHelp>
+                <PercentileHelp percentile="p99" align="end">
+                  <span className="flex items-center gap-1 text-destructive">
+                    <span className="h-2 w-2 rounded-full bg-destructive inline-block" />{' '}
+                    p99
+                  </span>
+                </PercentileHelp>
               </div>
             </div>
 
@@ -746,9 +838,11 @@ export function LiveExecutionCockpit({
             {/* Stat Tiles */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border">
               <div className="p-3 rounded-lg bg-card border border-border">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                  p50 Median
-                </span>
+                <PercentileHelp percentile="p50">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    p50 Median
+                  </span>
+                </PercentileHelp>
                 <div className="text-base font-bold text-success font-mono mt-0.5">
                   {history.length > 0 && history[history.length - 1]
                     ? `${history[history.length - 1]!.p50} ms`
@@ -756,9 +850,11 @@ export function LiveExecutionCockpit({
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-card border border-border">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                  p90 Latency
-                </span>
+                <PercentileHelp percentile="p90">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    p90 Latency
+                  </span>
+                </PercentileHelp>
                 <div className="text-base font-bold text-[#82DBC5] font-mono mt-0.5">
                   {history.length > 0 && history[history.length - 1]
                     ? `${history[history.length - 1]!.p90} ms`
@@ -766,9 +862,11 @@ export function LiveExecutionCockpit({
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-card border border-border">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                  p95 Spike
-                </span>
+                <PercentileHelp percentile="p95">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    p95 Spike
+                  </span>
+                </PercentileHelp>
                 <div className="text-base font-bold text-warning font-mono mt-0.5">
                   {history.length > 0 && history[history.length - 1]
                     ? `${history[history.length - 1]!.p95} ms`
@@ -776,9 +874,11 @@ export function LiveExecutionCockpit({
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-card border border-border">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                  p99 Tail
-                </span>
+                <PercentileHelp percentile="p99" align="end">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    p99 Tail
+                  </span>
+                </PercentileHelp>
                 <div className="text-base font-bold text-destructive font-mono mt-0.5">
                   {history.length > 0 && history[history.length - 1]
                     ? `${history[history.length - 1]!.p99} ms`
@@ -853,14 +953,14 @@ export function LiveExecutionCockpit({
                 <div className="text-sm font-bold text-foreground font-mono">
                   {inFlightCount}{' '}
                   <span className="text-xs text-muted-foreground font-normal">
-                    / 10 max
+                    / {maxConcurrency} max
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                   <div
                     className="h-full bg-success transition-all"
                     style={{
-                      width: `${Math.min(100, (inFlightCount / 10) * 100)}%`,
+                      width: `${Math.min(100, (inFlightCount / maxConcurrency) * 100)}%`,
                     }}
                   />
                 </div>
@@ -880,7 +980,7 @@ export function LiveExecutionCockpit({
                   <div
                     className="h-full bg-primary transition-all"
                     style={{
-                      width: `${Math.min(100, (queuedCount / Math.max(1, totalAttempts)) * 100)}%`,
+                      width: `${Math.min(100, (queuedCount / Math.max(1, run?.totalLogicalRequests ?? 1)) * 100)}%`,
                     }}
                   />
                 </div>

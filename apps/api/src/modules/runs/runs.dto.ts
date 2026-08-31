@@ -89,6 +89,10 @@ export class ListAttemptsQuery {
   statusCode?: number;
 
   @IsOptional()
+  @IsIn(['2xx', 'errors', 'timeouts'])
+  statusGroup?: '2xx' | 'errors' | 'timeouts';
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -109,9 +113,16 @@ export class ListAttemptsQuery {
   errorType?: string;
 }
 
-export class UpdateRunStatusDto {
+export class UpdateRunDto {
+  @IsOptional()
   @IsIn(['PAUSED', 'RUNNING', 'CANCELLED'])
-  status!: 'PAUSED' | 'RUNNING' | 'CANCELLED';
+  status?: 'PAUSED' | 'RUNNING' | 'CANCELLED';
+
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(100)
+  throttlePercent?: number;
 }
 
 export class PurgeProjectRunDataDto {

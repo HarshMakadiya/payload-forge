@@ -69,7 +69,7 @@ describe('RunExecutionService', () => {
     });
   });
 
-  it('dispatches a burst without rate spacing', async () => {
+  it('dispatches burst waves across the configured duration', async () => {
     const clock = new RecordingClock();
     const dispatchTimes: number[] = [];
     const executor: RequestExecutor = {
@@ -88,6 +88,7 @@ describe('RunExecutionService', () => {
       },
       totalLogicalRequests: 3,
       requestsPerMinute: 3,
+      durationMs: 60_000,
       rateStrategy: 'burst',
       maxConcurrency: 1,
       retry: { maxAttempts: 1, backoffMs: 0 },
@@ -101,7 +102,162 @@ describe('RunExecutionService', () => {
     };
 
     await new RunExecutionService(clock, executor).execute(snapshot);
-    expect(dispatchTimes).toEqual([0, 0, 0]);
+    expect(dispatchTimes).toEqual([0, 30_000, 60_000]);
+  });
+
+  it('applies live throttle changes to remaining burst waves', async () => {
+    const clock = new RecordingClock();
+    const dispatchTimes: number[] = [];
+    const handleReference: {
+      current?: ReturnType<RunExecutionService['start']>;
+    } = {};
+    const executor: RequestExecutor = {
+      execute: () => {
+        dispatchTimes.push(clock.now());
+        if (dispatchTimes.length === 1) {
+          handleReference.current?.setThrottlePercent(50);
+        }
+        return Promise.resolve({ statusCode: 200, latencyMs: 1 });
+      },
+    };
+    const snapshot: TestRunSnapshot = {
+      id: 'run-burst-throttle',
+      endpoint: {
+        method: 'POST',
+        url: 'https://example.test/orders',
+        headers: {},
+        timeoutMs: 5_000,
+      },
+      totalLogicalRequests: 3,
+      requestsPerMinute: 3,
+      durationMs: 60_000,
+      rateStrategy: 'burst',
+      maxConcurrency: 1,
+      retry: { maxAttempts: 1, backoffMs: 0 },
+      payloads: [{ order: 1 }],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
+      randomSeed: 42,
+    };
+
+    const handle = new RunExecutionService(clock, executor).start(snapshot);
+    handleReference.current = handle;
+    await handle.completion;
+
+    expect(dispatchTimes).toEqual([0, 60_000, 120_000]);
+  });
+
+  it('changes the worker dispatch rate when throttled', async () => {
+    const clock = new RecordingClock();
+    const dispatchTimes: number[] = [];
+    const handleReference: {
+      current?: ReturnType<RunExecutionService['start']>;
+    } = {};
+    const executor: RequestExecutor = {
+      execute: () => {
+        dispatchTimes.push(clock.now());
+        if (dispatchTimes.length === 1) {
+          handleReference.current?.setThrottlePercent(50);
+        }
+        return Promise.resolve({ statusCode: 200, latencyMs: 1 });
+      },
+    };
+    const snapshot: TestRunSnapshot = {
+      id: 'run-throttle',
+      endpoint: {
+        method: 'GET',
+        url: 'https://example.test/health',
+        headers: {},
+        timeoutMs: 5_000,
+      },
+      totalLogicalRequests: 3,
+      requestsPerMinute: 60,
+      rateStrategy: 'constant',
+      maxConcurrency: 1,
+      retry: { maxAttempts: 1, backoffMs: 0 },
+      payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
+      randomSeed: 42,
+    };
+
+    const handle = new RunExecutionService(clock, executor).start(snapshot);
+    handleReference.current = handle;
+    await handle.completion;
+
+    expect(dispatchTimes).toEqual([0, 2_000, 4_000]);
+  });
+
+  it('auto-pauses when the circuit-breaker failure threshold is reached', async () => {
+    const clock = new RecordingClock();
+    let executionCount = 0;
+    const handleReference: {
+      current?: ReturnType<RunExecutionService['start']>;
+    } = {};
+    const breakerEvents: number[] = [];
+    const observer: RunExecutionObserver = {
+      onCircuitBreaker: (event) => {
+        breakerEvents.push(event.completedRequests);
+        handleReference.current?.cancel();
+        return Promise.resolve();
+      },
+    };
+    const executor: RequestExecutor = {
+      execute: () => {
+        executionCount += 1;
+        return Promise.resolve({
+          statusCode: executionCount <= 4 ? 500 : 200,
+          latencyMs: 1,
+        });
+      },
+    };
+    const snapshot: TestRunSnapshot = {
+      id: 'run-circuit-breaker',
+      endpoint: {
+        method: 'GET',
+        url: 'https://example.test/health',
+        headers: {},
+        timeoutMs: 5_000,
+      },
+      totalLogicalRequests: 30,
+      requestsPerMinute: 60_000,
+      rateStrategy: 'constant',
+      maxConcurrency: 1,
+      circuitBreaker: {
+        minCompletedRequests: 20,
+        errorRateThreshold: 0.2,
+        action: 'pause',
+      },
+      retry: { maxAttempts: 1, backoffMs: 0 },
+      payloads: [null],
+      environmentVariables: {},
+      redactFields: [],
+      workerVersion: 'test',
+      targetAuthorizationAcknowledged: true,
+      productionConfirmed: false,
+      randomSeed: 42,
+    };
+
+    const handle = new RunExecutionService(clock, executor, observer).start(
+      snapshot
+    );
+    handleReference.current = handle;
+    const summary = await handle.completion;
+
+    expect(breakerEvents).toEqual([20]);
+    expect(summary).toMatchObject({
+      status: 'cancelled',
+      attempts: 20,
+      succeeded: 16,
+      failed: 4,
+      cancelled: 10,
+    });
   });
 
   it('logs retries as attempts and keeps them inside the rate budget', async () => {

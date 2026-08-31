@@ -64,6 +64,9 @@ export function RunLogExplorer({
     try {
       const query = new URLSearchParams({ page: String(page), pageSize: '50' });
       if (statusCode !== '') query.set('statusCode', statusCode);
+      if (activeFilterTab !== 'all') {
+        query.set('statusGroup', activeFilterTab);
+      }
       if (keyword.trim() !== '') query.set('keyword', keyword.trim());
       if (minLatencyMs !== '') query.set('minLatencyMs', minLatencyMs);
       const result = await apiRequest<{
@@ -77,7 +80,7 @@ export function RunLogExplorer({
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, minLatencyMs, page, runId, statusCode]);
+  }, [activeFilterTab, keyword, minLatencyMs, page, runId, statusCode]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -91,15 +94,7 @@ export function RunLogExplorer({
   ): void => {
     setActiveFilterTab(filter);
     setPage(1);
-    if (filter === 'all') {
-      setStatusCode('');
-    } else if (filter === '2xx') {
-      setStatusCode('200');
-    } else if (filter === 'errors') {
-      setStatusCode('500');
-    } else if (filter === 'timeouts') {
-      setStatusCode('408');
-    }
+    setStatusCode('');
   };
 
   if (!mounted || typeof document === 'undefined') return null;
@@ -152,7 +147,7 @@ export function RunLogExplorer({
         {/* Filter Controls Bar */}
         <div className="p-4 border-b border-border bg-surface/50 space-y-3 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 className={`px-3 py-1 text-xs font-semibold rounded-md border transition-colors cursor-pointer ${
                   activeFilterTab === 'all' && statusCode === ''
@@ -183,9 +178,19 @@ export function RunLogExplorer({
               >
                 4xx / 5xx Errors
               </button>
+              <button
+                className={`px-3 py-1 text-xs font-semibold rounded-md border transition-colors cursor-pointer ${
+                  activeFilterTab === 'timeouts'
+                    ? 'bg-warning/20 text-warning border-warning/40'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+                onClick={() => handleFilterChip('timeouts')}
+              >
+                Timeouts
+              </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
                 placeholder="Status code (e.g. 500)"
                 value={statusCode}

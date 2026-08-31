@@ -35,6 +35,12 @@ export interface RunProgress {
 export interface RunExecutionObserver {
   onAttempt?(attempt: RequestAttempt): Promise<void>;
   onProgress?(progress: RunProgress): Promise<void>;
+  onCircuitBreaker?(event: {
+    readonly completedRequests: number;
+    readonly failedRequests: number;
+    readonly errorRate: number;
+    readonly action: 'pause';
+  }): Promise<void>;
 }
 
 export interface RunExecutionHandle {
@@ -42,12 +48,14 @@ export interface RunExecutionHandle {
   pause(): void;
   resume(): void;
   cancel(): void;
+  setThrottlePercent(throttlePercent: number): void;
   getStatus(): 'running' | 'paused' | 'cancelled' | 'completed';
 }
 
 class RunControl {
   private status: 'running' | 'paused' | 'cancelled' | 'completed' = 'running';
   private resumeWaiters: Array<() => void> = [];
+  private throttlePercent = 100;
   readonly abortController = new AbortController();
 
   pause(): void {
@@ -80,6 +88,14 @@ class RunControl {
     this.releaseWaiters();
   }
 
+  setThrottlePercent(throttlePercent: number): void {
+    this.throttlePercent = Math.max(10, Math.min(100, throttlePercent));
+  }
+
+  getThrottlePercent(): number {
+    return this.throttlePercent;
+  }
+
   async waitUntilRunnable(): Promise<void> {
     if (this.status !== 'paused') {
       return;
@@ -104,14 +120,14 @@ class RateGate {
 
   constructor(
     private readonly clock: ExecutionClock,
-    private readonly intervalMs: number
+    private readonly getIntervalMs: () => number
   ) {}
 
   reserve(additionalDelayMs = 0, signal?: AbortSignal): Promise<void> {
     const reservation = this.tail.then(async () => {
       if (this.hasDispatchedAttempt) {
         await this.clock.sleep(
-          Math.max(this.intervalMs, additionalDelayMs),
+          Math.max(this.getIntervalMs(), additionalDelayMs),
           signal
         );
       }
@@ -133,11 +149,14 @@ export class RunExecutionService {
 
   start(snapshot: TestRunSnapshot): RunExecutionHandle {
     const control = new RunControl();
+    control.setThrottlePercent(snapshot.throttlePercent ?? 100);
     return {
       completion: this.executeControlled(snapshot, control),
       pause: () => control.pause(),
       resume: () => control.resume(),
       cancel: () => control.cancel(),
+      setThrottlePercent: (throttlePercent) =>
+        control.setThrottlePercent(throttlePercent),
       getStatus: () => control.getStatus(),
     };
   }
@@ -157,12 +176,40 @@ export class RunExecutionService {
     let dispatchedLogicalRequests = 0;
     let inFlight = 0;
     let timedOut = 0;
-    const intervalMs =
+    let circuitBreakerTripped = false;
+    const circuitBreaker = snapshot.circuitBreaker ?? {
+      minCompletedRequests: 20,
+      errorRateThreshold: 0.2,
+      action: 'pause' as const,
+    };
+    const baseIntervalMs = 60_000 / snapshot.requestsPerMinute;
+    const rateGate = new RateGate(this.clock, () =>
       snapshot.rateStrategy === 'burst'
         ? 0
-        : 60_000 / snapshot.requestsPerMinute;
-    const rateGate = new RateGate(this.clock, intervalMs);
+        : baseIntervalMs * (100 / control.getThrottlePercent())
+    );
     let nextLogicalRequestSequence = 1;
+
+    const evaluateCircuitBreaker = async (): Promise<void> => {
+      const completedRequests = succeeded + failed;
+      if (
+        circuitBreakerTripped ||
+        completedRequests < circuitBreaker.minCompletedRequests ||
+        failed / completedRequests < circuitBreaker.errorRateThreshold
+      ) {
+        return;
+      }
+      circuitBreakerTripped = true;
+      control.pause();
+      await this.publishObserverEvent(() =>
+        this.observer?.onCircuitBreaker?.({
+          completedRequests,
+          failedRequests: failed,
+          errorRate: failed / completedRequests,
+          action: circuitBreaker.action,
+        })
+      );
+    };
 
     const executeLogicalRequest = async (
       logicalRequestSequence: number
@@ -175,6 +222,14 @@ export class RunExecutionService {
         await control.waitUntilRunnable();
         if (control.getStatus() === 'cancelled') {
           return;
+        }
+        if (attemptNumber === 1 && snapshot.rateStrategy === 'burst') {
+          await this.waitForBurstWave(
+            snapshot,
+            logicalRequestSequence,
+            runStartedAtMs,
+            control
+          );
         }
         await rateGate.reserve(
           attemptNumber > 1
@@ -248,6 +303,7 @@ export class RunExecutionService {
             timedOut,
             cancelled: 0,
           });
+          await evaluateCircuitBreaker();
           break;
         }
         if (control.getStatus() === 'cancelled') {
@@ -264,6 +320,7 @@ export class RunExecutionService {
             timedOut,
             cancelled: 0,
           });
+          await evaluateCircuitBreaker();
         }
       }
     };
@@ -338,6 +395,32 @@ export class RunExecutionService {
       ),
       attemptsLog,
     };
+  }
+
+  private async waitForBurstWave(
+    snapshot: TestRunSnapshot,
+    logicalRequestSequence: number,
+    runStartedAtMs: number,
+    control: RunControl
+  ): Promise<void> {
+    const waveCount = Math.min(10, snapshot.totalLogicalRequests);
+    if (waveCount <= 1) return;
+    const waveSize = Math.ceil(snapshot.totalLogicalRequests / waveCount);
+    const waveIndex = Math.floor((logicalRequestSequence - 1) / waveSize);
+    const durationMs =
+      snapshot.durationMs ??
+      (snapshot.totalLogicalRequests / snapshot.requestsPerMinute) * 60_000;
+    while (control.getStatus() !== 'cancelled') {
+      const targetOffsetMs =
+        ((durationMs * waveIndex) / (waveCount - 1)) *
+        (100 / control.getThrottlePercent());
+      const delayMs = runStartedAtMs + targetOffsetMs - this.clock.now();
+      if (delayMs <= 0) return;
+      await this.clock.sleep(
+        Math.min(delayMs, 1_000),
+        control.abortController.signal
+      );
+    }
   }
 
   private percentile(values: readonly number[], percentile: number): number {
