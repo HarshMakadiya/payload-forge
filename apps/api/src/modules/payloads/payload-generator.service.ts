@@ -93,8 +93,7 @@ export class PayloadGeneratorService {
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.WEB_ORIGIN || 'http://localhost:3000',
-          'X-Title': 'Payload Forge',
+          'HTTP-Referer': process.env.WEB_ORIGIN || 'http://localhost:3002',
         },
         body: JSON.stringify({
           model,

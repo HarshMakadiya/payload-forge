@@ -25,12 +25,17 @@ export class HttpRequestExecutor implements RequestExecutor {
       hasTimedOut = true;
       abort();
     }, request.snapshot.endpoint.timeoutMs);
+    const requestAllowsBody = request.snapshot.endpoint.method !== 'GET';
     const payloadText =
-      request.payload === null || request.payload === undefined
+      !requestAllowsBody ||
+      request.payload === null ||
+      request.payload === undefined
         ? undefined
         : JSON.stringify(request.payload);
     const persistedPayloadTextRaw =
-      request.payload === null || request.payload === undefined
+      !requestAllowsBody ||
+      request.payload === null ||
+      request.payload === undefined
         ? undefined
         : JSON.stringify(
             redactValue(request.payload, request.snapshot.redactFields)
@@ -76,7 +81,9 @@ export class HttpRequestExecutor implements RequestExecutor {
       const response = await fetch(request.snapshot.endpoint.url, {
         method: request.snapshot.endpoint.method,
         headers: {
-          'content-type': 'application/json',
+          ...(payloadText === undefined
+            ? {}
+            : { 'content-type': 'application/json' }),
           ...request.snapshot.endpoint.headers,
         },
         ...(payloadText === undefined ? {} : { body: payloadText }),

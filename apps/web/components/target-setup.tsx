@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Check,
   Globe,
+  KeyRound,
   Network,
   Pencil,
   Plus,
@@ -31,6 +32,142 @@ interface TargetSetupProps {
   readonly onChanged: () => Promise<void>;
 }
 
+interface HeaderEntry {
+  readonly id: string;
+  readonly key: string;
+  readonly value: string;
+}
+
+function createHeaderEntry(key = '', value = ''): HeaderEntry {
+  return { id: `${Date.now()}-${Math.random()}`, key, value };
+}
+
+function parseHeaders(entries: readonly HeaderEntry[]): {
+  readonly headers: Record<string, string>;
+  readonly error?: string;
+} {
+  const headers: Record<string, string> = {};
+  const seenKeys = new Set<string>();
+
+  for (const entry of entries) {
+    const key = entry.key.trim();
+    const value = entry.value.trim();
+    if (key === '' && value === '') continue;
+    if (key === '' || value === '') {
+      return {
+        headers: {},
+        error: 'Every header needs both a name and a value.',
+      };
+    }
+    if (seenKeys.has(key.toLowerCase())) {
+      return {
+        headers: {},
+        error: `Header "${key}" is listed more than once.`,
+      };
+    }
+    seenKeys.add(key.toLowerCase());
+    headers[key] = value;
+  }
+
+  return { headers };
+}
+
+function HeaderFields({
+  entries,
+  onChange,
+  secret = false,
+  disabled = false,
+}: {
+  readonly entries: readonly HeaderEntry[];
+  readonly onChange: (entries: readonly HeaderEntry[]) => void;
+  readonly secret?: boolean;
+  readonly disabled?: boolean;
+}): React.ReactElement {
+  const updateEntry = (
+    id: string,
+    field: 'key' | 'value',
+    value: string
+  ): void => {
+    onChange(
+      entries.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry
+      )
+    );
+  };
+
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <div className="flex items-start gap-2">
+        <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <div>
+          <p className="text-xs font-medium text-foreground">
+            {secret ? 'Secret request headers' : 'Request headers'}
+          </p>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+            {secret
+              ? 'Values are encrypted and never shown again after saving.'
+              : 'Sent with every request to this endpoint.'}
+          </p>
+        </div>
+      </div>
+
+      {entries.map((entry, index) => (
+        <div
+          key={entry.id}
+          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2"
+        >
+          <Input
+            value={entry.key}
+            onChange={(event) =>
+              updateEntry(entry.id, 'key', event.target.value)
+            }
+            placeholder="Header name"
+            aria-label={`${secret ? 'Secret ' : ''}header ${index + 1} name`}
+            autoComplete="off"
+            disabled={disabled}
+            className="bg-card font-mono text-xs"
+          />
+          <Input
+            value={entry.value}
+            onChange={(event) =>
+              updateEntry(entry.id, 'value', event.target.value)
+            }
+            placeholder={secret ? 'Secret value' : 'Header value'}
+            aria-label={`${secret ? 'Secret ' : ''}header ${index + 1} value`}
+            type={secret ? 'password' : 'text'}
+            autoComplete={secret ? 'new-password' : 'off'}
+            disabled={disabled}
+            className="bg-card font-mono text-xs"
+          />
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Remove ${secret ? 'secret ' : ''}header ${index + 1}`}
+            disabled={disabled}
+            onClick={() =>
+              onChange(entries.filter((candidate) => candidate.id !== entry.id))
+            }
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => onChange([...entries, createHeaderEntry()])}
+      >
+        <Plus className="mr-1.5 h-3.5 w-3.5" />
+        Add header
+      </Button>
+    </div>
+  );
+}
+
 export function TargetSetup({
   projectId,
   environments,
@@ -43,6 +180,12 @@ export function TargetSetup({
   const [endpointName, setEndpointName] = useState('Create payload');
   const [method, setMethod] = useState('POST');
   const [path, setPath] = useState('/anything');
+  const [environmentSecretHeaders, setEnvironmentSecretHeaders] = useState<
+    readonly HeaderEntry[]
+  >([]);
+  const [endpointHeaders, setEndpointHeaders] = useState<
+    readonly HeaderEntry[]
+  >([]);
   const [isSavingEnv, setIsSavingEnv] = useState(false);
   const [isSavingEndpoint, setIsSavingEndpoint] = useState(false);
   const [envError, setEnvError] = useState('');
@@ -52,9 +195,16 @@ export function TargetSetup({
   const [editEnvironmentName, setEditEnvironmentName] = useState('');
   const [editBaseUrl, setEditBaseUrl] = useState('');
   const [editIsProduction, setEditIsProduction] = useState(false);
+  const [replaceEnvironmentSecrets, setReplaceEnvironmentSecrets] =
+    useState(false);
+  const [editEnvironmentSecretHeaders, setEditEnvironmentSecretHeaders] =
+    useState<readonly HeaderEntry[]>([]);
   const [editEndpointName, setEditEndpointName] = useState('');
   const [editMethod, setEditMethod] = useState('POST');
   const [editPath, setEditPath] = useState('');
+  const [editEndpointHeaders, setEditEndpointHeaders] = useState<
+    readonly HeaderEntry[]
+  >([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [deletingTarget, setDeletingTarget] = useState<
     | { readonly kind: 'environment' | 'endpoint'; readonly id: string }
@@ -94,6 +244,11 @@ export function TargetSetup({
       );
       return;
     }
+    const parsedSecretHeaders = parseHeaders(environmentSecretHeaders);
+    if (parsedSecretHeaders.error !== undefined) {
+      setEnvError(parsedSecretHeaders.error);
+      return;
+    }
 
     setIsSavingEnv(true);
     try {
@@ -104,9 +259,13 @@ export function TargetSetup({
           name: trimmedName,
           baseUrl: trimmedUrl,
           isProduction,
+          ...(Object.keys(parsedSecretHeaders.headers).length === 0
+            ? {}
+            : { secrets: parsedSecretHeaders.headers }),
         }),
       });
       await onChanged();
+      setEnvironmentSecretHeaders([]);
     } catch (caught: unknown) {
       setEnvError(
         caught instanceof Error ? caught.message : 'Failed to save environment'
@@ -132,6 +291,11 @@ export function TargetSetup({
     if (!trimmedPath.startsWith('/')) {
       trimmedPath = `/${trimmedPath}`;
     }
+    const parsedHeaders = parseHeaders(endpointHeaders);
+    if (parsedHeaders.error !== undefined) {
+      setEndpointError(parsedHeaders.error);
+      return;
+    }
 
     setIsSavingEndpoint(true);
     try {
@@ -142,10 +306,12 @@ export function TargetSetup({
           name: trimmedName,
           method,
           path: trimmedPath,
+          headers: parsedHeaders.headers,
           payloadSample: { name: 'Sample User', email: 'sample@example.test' },
         }),
       });
       await onChanged();
+      setEndpointHeaders([]);
     } catch (caught: unknown) {
       setEndpointError(
         caught instanceof Error ? caught.message : 'Failed to save endpoint'
@@ -163,6 +329,8 @@ export function TargetSetup({
     setEditEnvironmentName(environment.name);
     setEditBaseUrl(environment.baseUrl);
     setEditIsProduction(environment.kind === 'PRODUCTION');
+    setReplaceEnvironmentSecrets(false);
+    setEditEnvironmentSecretHeaders([]);
   };
 
   const beginEndpointEdit = (endpoint: Endpoint): void => {
@@ -173,6 +341,11 @@ export function TargetSetup({
     setEditEndpointName(endpoint.name);
     setEditMethod(endpoint.method);
     setEditPath(endpoint.path);
+    setEditEndpointHeaders(
+      Object.entries(endpoint.headers).map(([key, value]) =>
+        createHeaderEntry(key, value)
+      )
+    );
   };
 
   const updateEnvironment = async (environmentId: string): Promise<void> => {
@@ -184,6 +357,11 @@ export function TargetSetup({
       );
       return;
     }
+    const parsedSecretHeaders = parseHeaders(editEnvironmentSecretHeaders);
+    if (replaceEnvironmentSecrets && parsedSecretHeaders.error !== undefined) {
+      setManageError(parsedSecretHeaders.error);
+      return;
+    }
     setManageError('');
     setIsUpdating(true);
     try {
@@ -193,10 +371,15 @@ export function TargetSetup({
           name: trimmedName,
           baseUrl: trimmedUrl,
           isProduction: editIsProduction,
+          ...(replaceEnvironmentSecrets
+            ? { secrets: parsedSecretHeaders.headers }
+            : {}),
         }),
       });
       await onChanged();
       setEditingEnvironmentId('');
+      setReplaceEnvironmentSecrets(false);
+      setEditEnvironmentSecretHeaders([]);
     } catch (caught: unknown) {
       setManageError(
         caught instanceof Error
@@ -216,6 +399,11 @@ export function TargetSetup({
       return;
     }
     if (!trimmedPath.startsWith('/')) trimmedPath = `/${trimmedPath}`;
+    const parsedHeaders = parseHeaders(editEndpointHeaders);
+    if (parsedHeaders.error !== undefined) {
+      setManageError(parsedHeaders.error);
+      return;
+    }
     setManageError('');
     setIsUpdating(true);
     try {
@@ -225,6 +413,7 @@ export function TargetSetup({
           name: trimmedName,
           method: editMethod,
           path: trimmedPath,
+          headers: parsedHeaders.headers,
         }),
       });
       await onChanged();
@@ -346,6 +535,13 @@ export function TargetSetup({
                   Guarded Production Target
                 </span>
               </label>
+
+              <HeaderFields
+                entries={environmentSecretHeaders}
+                onChange={setEnvironmentSecretHeaders}
+                secret
+                disabled={isSavingEnv}
+              />
             </div>
 
             <Button
@@ -430,6 +626,12 @@ export function TargetSetup({
                   />
                 </div>
               </div>
+
+              <HeaderFields
+                entries={endpointHeaders}
+                onChange={setEndpointHeaders}
+                disabled={isSavingEndpoint}
+              />
             </div>
 
             <Button
@@ -577,6 +779,34 @@ export function TargetSetup({
                                 </Button>
                               </div>
                             </div>
+                            <div className="border-t border-border pt-3">
+                              <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={replaceEnvironmentSecrets}
+                                  onChange={(event) => {
+                                    setReplaceEnvironmentSecrets(
+                                      event.target.checked
+                                    );
+                                    setEditEnvironmentSecretHeaders([]);
+                                  }}
+                                  className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary accent-primary"
+                                />
+                                Replace stored secret headers
+                              </label>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                Existing values are hidden. Enable this only to
+                                replace them or clear all secrets.
+                              </p>
+                            </div>
+                            {replaceEnvironmentSecrets && (
+                              <HeaderFields
+                                entries={editEnvironmentSecretHeaders}
+                                onChange={setEditEnvironmentSecretHeaders}
+                                secret
+                                disabled={isUpdating}
+                              />
+                            )}
                           </form>
                         ) : (
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -586,7 +816,7 @@ export function TargetSetup({
                                   {environment.name}
                                 </h5>
                                 <span
-                                  className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                  className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
                                     environment.kind === 'PRODUCTION'
                                       ? 'border-warning/30 bg-warning/10 text-warning'
                                       : 'border-border bg-card text-muted-foreground'
@@ -742,6 +972,11 @@ export function TargetSetup({
                                 />
                               </div>
                             </label>
+                            <HeaderFields
+                              entries={editEndpointHeaders}
+                              onChange={setEditEndpointHeaders}
+                              disabled={isUpdating}
+                            />
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="submit"

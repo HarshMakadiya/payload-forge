@@ -16,6 +16,7 @@ export interface Endpoint {
   readonly name: string;
   readonly method: string;
   readonly path: string;
+  readonly headers: Readonly<Record<string, string>>;
 }
 
 export interface TestRun {

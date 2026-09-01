@@ -85,7 +85,7 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       TARGET_HOST_ALLOWLIST: ${TARGET_HOST_ALLOWLIST:-}
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3002}
       METADATA_RETENTION_DAYS: 30
       CAPTURE_BODIES: 'true'
       MAX_CAPTURED_BODY_BYTES: 262144
@@ -127,7 +127,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:4000/v1
       NEXT_PUBLIC_API_ORIGIN: http://localhost:4000
     ports:
-      - '${WEB_PORT:-3000}:3000'
+      - '${WEB_PORT:-3002}:3000'
     depends_on:
       api:
         condition: service_healthy

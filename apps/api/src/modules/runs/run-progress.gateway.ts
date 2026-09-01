@@ -5,7 +5,7 @@ import type { Server } from 'socket.io';
 
 @Injectable()
 @WebSocketGateway({
-  cors: { origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000' },
+  cors: { origin: process.env.WEB_ORIGIN ?? 'http://localhost:3002' },
 })
 export class RunProgressGateway implements OnModuleInit, OnModuleDestroy {
   @WebSocketServer()

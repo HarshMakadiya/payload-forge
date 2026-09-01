@@ -93,9 +93,13 @@ export class RunsService {
       unknown
     >;
     const selectedPayloads =
-      (payloadTemplate?.payloads as unknown[] | undefined) ??
-      input.payloads ??
-      (endpoint.payloadSample === null ? [null] : [endpoint.payloadSample]);
+      endpoint.method === 'GET'
+        ? [null]
+        : ((payloadTemplate?.payloads as unknown[] | undefined) ??
+          input.payloads ??
+          (endpoint.payloadSample === null
+            ? [null]
+            : [endpoint.payloadSample]));
     const snapshot: TestRunSnapshot = {
       id,
       endpoint: {

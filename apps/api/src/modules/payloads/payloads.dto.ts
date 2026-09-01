@@ -9,6 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class GeneratePayloadsDto {
   @IsOptional()
@@ -61,7 +62,9 @@ export class SavePayloadTemplateDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  payloads!: unknown[];
+  @IsObject({ each: true })
+  @Type(() => Object)
+  payloads!: Record<string, unknown>[];
 
   @IsString()
   source!: string;

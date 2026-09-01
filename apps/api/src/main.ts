@@ -28,7 +28,7 @@ const app = await NestFactory.create<NestExpressApplication>(AppModule, {
 });
 app.useBodyParser('json', { limit: '3mb' });
 app.setGlobalPrefix('v1');
-app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000' });
+app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3002' });
 app.useGlobalPipes(
   new ValidationPipe({
     forbidNonWhitelisted: true,

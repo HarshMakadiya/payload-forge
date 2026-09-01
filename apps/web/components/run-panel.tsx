@@ -75,6 +75,7 @@ export function RunPanel({
   const selectedEndpoint = endpoints.find(
     (endpoint) => endpoint.id === endpointId
   );
+  const endpointDoesNotUseBody = selectedEndpoint?.method === 'GET';
 
   useEffect(() => {
     setProductionConfirmed(false);
@@ -129,7 +130,9 @@ export function RunPanel({
           maxConcurrency,
           ownershipAcknowledged,
           productionConfirmed,
-          ...(payloadTemplateId === '' ? {} : { payloadTemplateId }),
+          ...(payloadTemplateId === '' || endpointDoesNotUseBody
+            ? {}
+            : { payloadTemplateId }),
         }),
       });
       setCockpitRunId(newRun.id);
@@ -204,7 +207,7 @@ export function RunPanel({
         <div className="flex items-center gap-2">
           <Badge
             variant="secondary"
-            className="font-mono text-[11px] text-muted-foreground"
+            className="font-mono text-xs text-muted-foreground"
           >
             10k req/min max · ⌘⏎ to review
           </Badge>
@@ -253,23 +256,34 @@ export function RunPanel({
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Payload Template
-            </label>
-            <select
-              value={payloadTemplateId}
-              onChange={(event) => setPayloadTemplateId(event.target.value)}
-              className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-            >
-              <option value="">Endpoint default sample</option>
-              {payloadTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} · v{template.version}
-                </option>
-              ))}
-            </select>
-          </div>
+          {endpointDoesNotUseBody ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Request Body
+              </label>
+              <div className="flex h-9 items-center rounded-md border border-border bg-secondary px-3 text-xs text-muted-foreground">
+                None — GET requests do not send a body
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Payload Template
+              </label>
+              <select
+                value={payloadTemplateId}
+                onChange={(event) => setPayloadTemplateId(event.target.value)}
+                className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="">Endpoint default sample</option>
+                {payloadTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} · v{template.version}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -277,7 +291,7 @@ export function RunPanel({
                 Logical Requests
               </label>
               <span
-                className="text-[10px] text-muted-foreground"
+                className="text-xs text-muted-foreground"
                 title="Target operations executed across the duration"
               >
                 <HelpCircle className="h-3 w-3 inline" />
@@ -332,7 +346,7 @@ export function RunPanel({
                 Max Concurrency
               </label>
               <span
-                className="text-[10px] text-muted-foreground"
+                className="text-xs text-muted-foreground"
                 title="Parallel worker threads"
               >
                 <HelpCircle className="h-3 w-3 inline" />
@@ -355,7 +369,7 @@ export function RunPanel({
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 rounded-lg bg-surface border border-border">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
             <div className="space-y-0.5">
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+              <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                 ESTIMATED RATE
               </span>
               <div className="text-sm font-bold text-foreground">
@@ -370,7 +384,7 @@ export function RunPanel({
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+              <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                 TARGET DISPATCH URL
               </span>
               <div className="text-xs font-mono text-foreground truncate max-w-[280px]">
@@ -381,7 +395,7 @@ export function RunPanel({
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+              <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                 TRAFFIC PROFILE
               </span>
               <div className="text-sm font-semibold text-foreground">
@@ -477,9 +491,11 @@ export function RunPanel({
                   Payload source
                 </dt>
                 <dd className="text-sm font-semibold text-foreground">
-                  {selectedPayloadTemplate === undefined
-                    ? 'Endpoint default sample'
-                    : `${selectedPayloadTemplate.name} · v${selectedPayloadTemplate.version}`}
+                  {endpointDoesNotUseBody
+                    ? 'No request body (GET)'
+                    : selectedPayloadTemplate === undefined
+                      ? 'Endpoint default sample'
+                      : `${selectedPayloadTemplate.name} · v${selectedPayloadTemplate.version}`}
                 </dd>
               </div>
             </dl>

@@ -89,7 +89,10 @@ describe('RunsService create', () => {
     ownershipAcknowledged: true,
   };
 
-  const createService = (environmentKind: 'DEVELOPMENT' | 'PRODUCTION') => {
+  const createService = (
+    environmentKind: 'DEVELOPMENT' | 'PRODUCTION',
+    endpointMethod: 'GET' | 'POST' = 'POST'
+  ) => {
     const create = vi.fn().mockResolvedValue({ id: 'run-1' });
     const enqueue = vi.fn().mockResolvedValue(undefined);
     const environment = {
@@ -102,7 +105,7 @@ describe('RunsService create', () => {
     const endpoint = {
       id: input.endpointId,
       projectId: input.projectId,
-      method: 'POST',
+      method: endpointMethod,
       path: '/orders/{{tenant}}',
       headers: { 'x-tenant': '{{tenant}}' },
       timeoutMs: 5_000,
@@ -169,5 +172,14 @@ describe('RunsService create', () => {
       action: 'pause',
     });
     expect(encryptedSecrets).toEqual({ token: 'encrypted' });
+  });
+
+  it('omits the endpoint sample payload for GET runs', async () => {
+    const { service, enqueue } = createService('DEVELOPMENT', 'GET');
+
+    await expect(service.create(input)).resolves.toEqual({ id: 'run-1' });
+
+    const [snapshot] = enqueue.mock.calls[0] as [TestRunSnapshot];
+    expect(snapshot.payloads).toEqual([null]);
   });
 });

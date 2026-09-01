@@ -15,6 +15,10 @@ import {
   X,
 } from 'lucide-react';
 import { apiRequest, type Endpoint } from '../lib/api';
+import {
+  parsePayloadImport,
+  serializeImportedPayloads,
+} from '../lib/payload-import';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import {
@@ -46,10 +50,19 @@ const PRESETS: readonly PayloadPreset[] = [
     sample: JSON.stringify(
       {
         orderId: 'ord_98765',
-        customer: { name: 'Alex Smith', email: 'alex@example.test', tier: 'VIP' },
+        customer: {
+          name: 'Alex Smith',
+          email: 'alex@example.test',
+          tier: 'VIP',
+        },
         currency: 'USD',
         items: [
-          { sku: 'ITEM-01', name: 'Mechanical Keyboard', qty: 1, price: 149.99 },
+          {
+            sku: 'ITEM-01',
+            name: 'Mechanical Keyboard',
+            qty: 1,
+            price: 149.99,
+          },
           { sku: 'ITEM-02', name: 'USB-C Cable', qty: 2, price: 19.99 },
         ],
         totalAmount: 189.97,
@@ -122,6 +135,7 @@ export function PayloadLab({
   const [count, setCount] = useState(100);
   const [schema, setSchema] = useState('');
   const [fieldRules, setFieldRules] = useState('');
+  const [importedPayloadText, setImportedPayloadText] = useState('');
   const [estimate, setEstimate] = useState<{
     estimatedInputTokens: number;
     estimatedOutputTokens: number;
@@ -135,6 +149,7 @@ export function PayloadLab({
   const [generatedPayloads, setGeneratedPayloads] = useState<
     readonly Record<string, unknown>[]
   >([]);
+  const [payloadSource, setPayloadSource] = useState<'AI' | 'IMPORTED'>('AI');
   const [endpointId, setEndpointId] = useState('');
   const [templateName, setTemplateName] = useState('Generated payloads');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -172,11 +187,7 @@ export function PayloadLab({
         throw new Error('Payload count must be between 1 and 10,000');
       }
 
-      if (
-        !description.trim() &&
-        !parsedSample &&
-        !parsedSchema
-      ) {
+      if (!description.trim() && !parsedSample && !parsedSchema) {
         throw new Error(
           'Please describe the payload type or provide a seed sample JSON.'
         );
@@ -197,6 +208,7 @@ export function PayloadLab({
         }),
       });
       setGeneratedPayloads(result.payloads);
+      setPayloadSource('AI');
       setOutput(JSON.stringify(result.payloads.slice(0, 5), null, 2));
     } catch (caught: unknown) {
       setErrorMessage(
@@ -204,6 +216,23 @@ export function PayloadLab({
       );
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const importPayloads = (): void => {
+    setErrorMessage('');
+    try {
+      const payloads = parsePayloadImport(importedPayloadText);
+      setGeneratedPayloads(payloads);
+      setPayloadSource('IMPORTED');
+      setOutput(serializeImportedPayloads(payloads));
+      if (templateName === 'Generated payloads') {
+        setTemplateName('Imported payloads');
+      }
+    } catch (caught: unknown) {
+      setErrorMessage(
+        caught instanceof Error ? caught.message : 'Payload import failed'
+      );
     }
   };
 
@@ -256,7 +285,7 @@ export function PayloadLab({
           endpointId,
           name: templateName.trim(),
           payloads: generatedPayloads,
-          source: 'AI',
+          source: payloadSource,
         }),
       });
       setSavedSuccess(true);
@@ -324,7 +353,6 @@ export function PayloadLab({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Authoring Controls */}
           <div className="lg:col-span-7 space-y-5">
-            
             {/* Step 1: Natural Language Prompt / Type */}
             <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-border">
@@ -334,7 +362,7 @@ export function PayloadLab({
                     1. Describe Payload Type & Scenario
                   </h3>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-xs text-muted-foreground font-mono">
                   Natural Language Prompt
                 </span>
               </div>
@@ -357,7 +385,7 @@ export function PayloadLab({
 
               {/* Quick Presets */}
               <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">
+                <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider block">
                   Quick Scenario Presets:
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -492,12 +520,52 @@ export function PayloadLab({
               </div>
             </div>
 
-            {/* Step 4: Save as Reusable Template */}
+            <div className="space-y-3 border-t border-border pt-5">
+              <div className="flex items-center gap-2">
+                <FileCode2 className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Import external payload JSON
+                </h3>
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Paste one JSON request body or an array of request bodies from
+                another tool. It is validated locally and never sent to AI.
+              </p>
+              <Textarea
+                value={importedPayloadText}
+                onChange={(event) => {
+                  setImportedPayloadText(event.target.value);
+                  if (errorMessage) setErrorMessage('');
+                }}
+                rows={7}
+                placeholder={
+                  '[\n  { "incomingImageId": 900001 },\n  { "incomingImageId": 900002 }\n]'
+                }
+                className="bg-card font-mono text-xs"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Synthetic or anonymized data only · up to 10,000 items.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={importPayloads}
+                  disabled={importedPayloadText.trim() === ''}
+                >
+                  <FileCode2 className="mr-1.5 h-3.5 w-3.5" />
+                  Import & preview
+                </Button>
+              </div>
+            </div>
+
+            {/* Step 5: Save as Reusable Template */}
             <div className="p-4 rounded-lg bg-surface border border-border space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <Database className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  4. Save as Reusable Template
+                  5. Save as Reusable Template
                 </h3>
               </div>
 
@@ -590,18 +658,18 @@ export function PayloadLab({
                 )}
                 <Badge
                   variant={generatedPayloads.length > 0 ? 'success' : 'muted'}
-                  className="text-[11px]"
+                  className="text-xs"
                 >
                   {generatedPayloads.length > 0
-                    ? `${generatedPayloads.length} generated`
-                    : 'Awaiting generation'}
+                    ? `${generatedPayloads.length} ${payloadSource === 'IMPORTED' ? 'imported' : 'generated'}`
+                    : 'Awaiting payloads'}
                 </Badge>
               </div>
             </div>
 
             <pre className="flex-1 min-h-[300px] max-h-[550px] overflow-auto p-3.5 rounded-md bg-card border border-border text-xs text-foreground font-mono leading-relaxed">
               {output ||
-                '// Generated payload batches will be previewed here in JSON format.\n// Describe the payload above and click "Generate Payloads".'}
+                '// Generated or imported payload batches will appear here.\n// Use AI generation above or paste external JSON to import it directly.'}
             </pre>
           </div>
         </div>
